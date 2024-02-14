@@ -6,7 +6,7 @@ import sys
 class MainApp(QMainWindow):
     def __init__(self, mode):
         super().__init__()
-        loadUi("ui/example.ui", self)
+        loadUi("ui/untitled.ui", self)
 
 
 def main():
