@@ -14,3 +14,4 @@ class CMainWindow(QMainWindow):
         
         self.pushButton_applyConfig: QPushButton
         self.pushButton_importVideo: QPushButton
+        
