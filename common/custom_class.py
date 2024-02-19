@@ -15,3 +15,4 @@ class CMainWindow(QMainWindow):
         self.pushButton_applyConfig: QPushButton
         self.pushButton_importVideo: QPushButton
         
+        self.graphicsView_mainViewer: QGraphicsView
