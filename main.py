@@ -17,8 +17,6 @@ class MainApp(CMainWindow):
         super().__init__()
 
         loadUi("./ui/main_window.ui", self)
-        self.view = graphicsView_mainViewer(self)
-        self.videoLayout.addWidget(self.view)
         
         self.pushButton_importVideo.clicked.connect(self.import_video_button_clicked)
         self.plainTextEdit_mainLogger.setPlainText("[System] 영상을 입력하세요. ")
@@ -40,39 +38,6 @@ class MainApp(CMainWindow):
             
         else:
             show_message(self, "파일 불러오기에 실패했습니다.")
-
-class graphicsView_mainViewer(QGraphicsView):
-    def __init__(self, parent):
-        super(graphicsView_mainViewer, self).__init__(parent)
-        self.setAlignment(Qt.AlignTop | Qt.AlignLeft)
-
-        self.file_name = ""
-        self.gScene = QGraphicsScene(self)
-        self.mediaPlayer = QMediaPlayer(self, QMediaPlayer.VideoSurface)
-        self.videoItem = QGraphicsVideoItem()
-
-        self.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
-        self.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
-        self.viewer_width = 1600
-        self.viewer_height = 900
-        self.videoItem.setPos(0, 0)
-        self.videoItem.setSize(QSizeF(self.viewer_width, self.viewer_height))
-        self.gScene.addItem(self.videoItem)
-
-
-        # self.videoItem.setPos(0,0)
-
-        # self.setScene(self.gScene)
-        
-    def video_play(self, file):
-        self.file_name = file
-        video = QMediaContent((QUrl.fromLocalFile(file)))
-        self.mediaPlayer.setVideoOutput(self.videoItem)
-        self.setScene(self.gScene)
-        self.mediaPlayer.setMedia(video)
-        self.mediaPlayer.play()
-        # self.fitInView(self.gScene.sceneRect(), Qt.KeepAspectRatio)
-
 
 def main():
     parser = argparse.ArgumentParser(description='Program Mode')
