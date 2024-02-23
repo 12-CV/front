@@ -12,7 +12,7 @@ class CMainWindow(QMainWindow):
         self.plainTextEdit_mainLogger: QPlainTextEdit
         self.plainTextEdit_videoInfo: QPlainTextEdit
         
-        self.pushButton_applyConfig: QPushButton
+        self.pushButton_startVideo: QPushButton
         self.pushButton_importVideo: QPushButton
         
         self.graphicsView_mainViewer: QGraphicsView

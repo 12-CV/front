@@ -216,7 +216,7 @@ QPushButton:hover
               </widget>
              </item>
              <item>
-              <widget class="QPushButton" name="pushButton_applyConfig">
+              <widget class="QPushButton" name="pushButton_startVideo">
                <property name="font">
                 <font>
                  <family>NanumGothic</family>
@@ -306,6 +306,9 @@ QPushButton:hover
          <widget class="QPlainTextEdit" name="plainTextEdit_mainLogger">
           <property name="readOnly">
            <bool>true</bool>
+          </property>
+          <property name="plainText">
+           <string>[System] 영상을 입력하세요.</string>
           </property>
          </widget>
         </item>
