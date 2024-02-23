@@ -16,3 +16,4 @@ class CMainWindow(QMainWindow):
         self.pushButton_importVideo: QPushButton
         
         self.graphicsView_mainViewer: QGraphicsView
+        self.label_videoWindow: QLabel
