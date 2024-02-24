@@ -216,7 +216,7 @@ QPushButton:hover
               </widget>
              </item>
              <item>
-              <widget class="QPushButton" name="pushButton_applyConfig">
+              <widget class="QPushButton" name="pushButton_startVideo">
                <property name="font">
                 <font>
                  <family>NanumGothic</family>
@@ -284,12 +284,31 @@ QPushButton:hover
          <number>10</number>
         </property>
         <item>
-         <layout class="QVBoxLayout" name="videoLayout"/>
+         <layout class="QVBoxLayout" name="videoLayout">
+          <item>
+           <widget class="QLabel" name="label_videoWindow">
+            <property name="font">
+             <font>
+              <kerning>true</kerning>
+             </font>
+            </property>
+            <property name="text">
+             <string/>
+            </property>
+            <property name="margin">
+             <number>-1</number>
+            </property>
+           </widget>
+          </item>
+         </layout>
         </item>
         <item>
          <widget class="QPlainTextEdit" name="plainTextEdit_mainLogger">
           <property name="readOnly">
            <bool>true</bool>
+          </property>
+          <property name="plainText">
+           <string>[System] 영상을 입력하세요.</string>
           </property>
          </widget>
         </item>
@@ -305,7 +324,7 @@ QPushButton:hover
      <x>0</x>
      <y>0</y>
      <width>1920</width>
-     <height>18</height>
+     <height>21</height>
     </rect>
    </property>
   </widget>
