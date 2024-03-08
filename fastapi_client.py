@@ -7,6 +7,9 @@ import websockets
 import json
 import struct
 
+frame_queue = asyncio.Queue(30)
+metadata_queue = asyncio.Queue()
+
 def draw_bboxes(frame, bboxes, frame_shape):
     for bbox in bboxes:
         x, y, w, h = bbox
@@ -17,18 +20,44 @@ def draw_bboxes(frame, bboxes, frame_shape):
         h = int(h * frame_shape[0] / 640)
         cv2.rectangle(frame, (x, y), (w, h), (0, 255, 0), 2)
 
-async def send_frame(websocket, frame):
-    frame = cv2.resize(frame, (640, 640))
-    _, img_encoded = cv2.imencode('.jpg', frame)
-    await websocket.send(img_encoded.tobytes())
-    #print(f"프레임 전송 완료")
+async def send_frame(websocket, cap):
+    while cap.isOpened():
+        ret, frame = cap.read()
+        if ret == None:
+            break
 
-async def receive_detection_results(websocket, frame_shape, frame):
-    result = await websocket.recv()
-    #print(f"프레임메타데이터 수신 완료")
-    result_dict = json.loads(result)
-    bboxes = result_dict.get("bboxes", [])
-    draw_bboxes(frame, bboxes, frame_shape)
+        await frame_queue.put(frame)
+        try:
+            frame = cv2.resize(frame, (640, 640))
+        except:
+            raise Exception("영상이 끝났습니다!")
+        _, img_encoded = cv2.imencode('.jpg', frame)
+        await websocket.send(img_encoded.tobytes())
+
+async def receive_frame(websocket):
+    while True:
+        result = await websocket.recv()
+        result_dict = json.loads(result)
+        bboxes = result_dict.get("bboxes", [])
+        await metadata_queue.put(bboxes)
+
+async def render_frame(frame_shape, fps):
+    time_per_frame = 1 / fps
+    prev_time = time() - 1
+    while True:
+        metadata = await metadata_queue.get()
+        frame = await frame_queue.get()
+        draw_bboxes(frame, metadata, frame_shape)
+
+        curr_time = time()
+        elapsed = curr_time - prev_time
+        if elapsed < time_per_frame:
+            await asyncio.sleep(time_per_frame - elapsed)
+
+        cv2.imshow("Object Detection", frame)
+        prev_time = time()
+        if cv2.waitKey(1) & 0xFF == ord('q'):
+            raise Exception("키보드로 인한 종료!")
 
 async def main():
     video_path = "walk.mp4"
@@ -36,27 +65,9 @@ async def main():
     fps = cap.get(cv2.CAP_PROP_FPS)
     width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
     height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-
     server_uri = "ws://10.28.224.34:30348/ws"
     async with websockets.connect(server_uri) as websocket:
-        while cap.isOpened():
-            ret, frame = cap.read(15)
-            if not ret:
-                break
-
-            start = time()
-            await send_frame(websocket, frame)
-            #print(f"Send Frame Time: {time() - start}")
-
-            start = time()
-            await receive_detection_results(websocket, (height, width), frame)
-            #print(f"Receive Results Time: {time() - start}")
-
-            start = time()
-            cv2.imshow("Object Detection", frame)
-            if cv2.waitKey(1) & 0xFF == ord('q'):
-                break
-            #print(f"Show Video Time: {time() - start}")
+        await asyncio.gather(send_frame(websocket, cap), receive_frame(websocket), render_frame((height, width), fps))
 
     cap.release()
     cv2.destroyAllWindows()
