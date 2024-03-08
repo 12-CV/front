@@ -7,6 +7,7 @@ import websockets
 import struct,  asyncio
 import pickle
 from common.const import *
+import time
 
 class VideoSendThread(threading.Thread):
     def __init__(self, cap, frame_dict, frame_dict_lock, finish_event):
@@ -27,7 +28,7 @@ class VideoSendThread(threading.Thread):
                 if not ret:
                     break
 
-                frame = cv2.resize(frame, (640,480))
+                frame = cv2.resize(frame, (640,640))
                 with self.frame_dict_lock:
                     self.frame_dict[f'{frame_number}'] = frame
                 # 프레임 번호 전송
@@ -36,7 +37,7 @@ class VideoSendThread(threading.Thread):
                 buffer = cv2.imencode('.jpg', frame)[1].tobytes()
                 await websocket.send(buffer)
                 frame_number += 1
-                QThread.msleep(30)
+                time.sleep(30)
 
     def run(self):
         print("VideoSendthread Started")
@@ -44,7 +45,6 @@ class VideoSendThread(threading.Thread):
         asyncio.set_event_loop(loop)
         loop.run_until_complete(self.send_frame())
         loop.close()
-        self.finish_event.set()
         print("VideoSendthread Ended")
 
 
@@ -98,35 +98,41 @@ class VideoRenderThread(QThread):
         print("VideoRenderThread Started")
         while True:
             try:
-                frame_number, frame_metadata = self.frame_metadata_queue.get(timeout=0.1)
+                frame_number, frame_metadata = self.frame_metadata_queue.get(timeout=1)
             except queue.Empty:
                 if self.finish_event.is_set():
                     break
                 continue
-            
+
             print(f"렌더러 프레임 {frame_number} 확인")
             with self.frame_dict_lock:
-                frame = self.frame_dict[f'{frame_number}']
+                try:
+                    frame = self.frame_dict[f'{frame_number}']
+                except:
+                    print(f"렌더러 프레임 {frame_number}을 드랍했습니다.")
+                    continue
+                    
             rgb_image = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+
             h, w, ch = rgb_image.shape
 
-            for item in frame_metadata:
-                predictions = item['predictions']
-                for prediction in predictions:
-                    label = prediction['label']
-                    bbox = prediction['bbox']
-                    confidence = prediction['confidence']
+            # for item in frame_metadata:
+            #     predictions = item['predictions']
+            #     for prediction in predictions:
+            #         label = prediction['label']
+            #         bbox = prediction['bbox']
+            #         confidence = prediction['confidence']
 
-                    # bbox 그리기
-                    cv2.rectangle(rgb_image, bbox['pt1'], bbox['pt2'],(255, 0, 0), thickness=2)
+            #         # bbox 그리기
+            #         cv2.rectangle(rgb_image, bbox['pt1'], bbox['pt2'],(255, 0, 0), thickness=2)
 
-                    # label과 confidence 표시
-                    text_position = (bbox['pt1'][0], bbox['pt1'][1] - 10)
-                    text = f"{label}: {confidence}"
-                    cv2.putText(rgb_image, text, text_position, cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
+            #         # label과 confidence 표시
+            #         text_position = (bbox['pt1'][0], bbox['pt1'][1] - 10)
+            #         text = f"{label}: {confidence}"
+            #         cv2.putText(rgb_image, text, text_position, cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
 
             bytes_per_line = ch * w
             qt_image = QImage(rgb_image.data, w, h, bytes_per_line, QImage.Format_RGB888)
+            print(f'META_DATA of frame{frame_number}: {frame_metadata}')
             self.video_signal.emit(qt_image)
-            QThread.msleep(20)
         print("VideoRenderThread Ended")

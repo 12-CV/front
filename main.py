@@ -42,7 +42,7 @@ class MainApp(CMainWindow):
 
             ret, frame = self.cap.read()
             if ret:
-                frame = cv2.resize(frame, (640,480))
+                frame = cv2.resize(frame, (640,640))
                 self.label_videoWindow.setPixmap(frame_to_pixmap(frame))            
         else:
             show_message(self, "파일이 존재하지 않습니다.")
@@ -52,6 +52,7 @@ class MainApp(CMainWindow):
         file_name = getattr(self, 'file_name', None)
         if not file_name:
             show_message(self, "파일을 먼저 선택해주세요!")
+            return
         
         # 비디오를 처음으로 돌림
         self.cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
@@ -69,10 +70,12 @@ class MainApp(CMainWindow):
         video_render_thread = VideoRenderThread(frame_dict, frame_dict_lock, frame_metadata_queue, finish_event)
         video_render_thread.video_signal.connect(self.update_frame)
         video_render_thread.start()
-        time.sleep(1)
+        time.sleep(0.01)
 
     def update_frame(self, image:QImage):
         self.label_videoWindow.setPixmap(QPixmap.fromImage(image))
+
+        
 def main():
     parser = argparse.ArgumentParser(description='Program Mode')
     parser.add_argument('--mode', type=str, help='DEV or PROD', default="DEV")
