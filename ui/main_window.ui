@@ -6,139 +6,415 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>931</width>
-    <height>663</height>
+    <width>1000</width>
+    <height>1000</height>
    </rect>
   </property>
+  <property name="sizePolicy">
+   <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+    <horstretch>0</horstretch>
+    <verstretch>0</verstretch>
+   </sizepolicy>
+  </property>
+  <property name="maximumSize">
+   <size>
+    <width>1000</width>
+    <height>1000</height>
+   </size>
+  </property>
+  <property name="font">
+   <font>
+    <family>Californian FB</family>
+    <pointsize>10</pointsize>
+   </font>
+  </property>
   <property name="windowTitle">
-   <string>충돌방지시스템</string>
+   <string>Collision Detection System v1</string>
+  </property>
+  <property name="styleSheet">
+   <string notr="true">background-color: rgb(41, 41, 41);
+color: rgb(124, 124, 124);
+</string>
   </property>
   <widget class="QWidget" name="centralwidget">
-   <widget class="QGraphicsView" name="graphicsView_mainViewer">
-    <property name="geometry">
-     <rect>
-      <x>280</x>
-      <y>30</y>
-      <width>601</width>
-      <height>481</height>
-     </rect>
+   <layout class="QGridLayout" name="gridLayout_3">
+    <property name="leftMargin">
+     <number>10</number>
     </property>
-   </widget>
-   <widget class="QPushButton" name="pushButton_importVideo">
-    <property name="geometry">
-     <rect>
-      <x>30</x>
-      <y>30</y>
-      <width>231</width>
-      <height>61</height>
-     </rect>
+    <property name="topMargin">
+     <number>10</number>
     </property>
-    <property name="font">
-     <font>
-      <family>Arial Black</family>
-      <pointsize>15</pointsize>
-      <weight>10</weight>
-      <italic>false</italic>
-      <bold>false</bold>
-     </font>
+    <property name="rightMargin">
+     <number>10</number>
     </property>
-    <property name="styleSheet">
-     <string notr="true">font: 87 15pt &quot;Arial Black&quot;;</string>
+    <property name="bottomMargin">
+     <number>10</number>
     </property>
-    <property name="text">
-     <string>영상 불러오기</string>
+    <property name="horizontalSpacing">
+     <number>5</number>
     </property>
-   </widget>
-   <widget class="QPlainTextEdit" name="plainTextEdit_videoInfo">
-    <property name="geometry">
-     <rect>
-      <x>30</x>
-      <y>110</y>
-      <width>231</width>
-      <height>141</height>
-     </rect>
-    </property>
-   </widget>
-   <widget class="QPlainTextEdit" name="plainTextEdit_mainLogger">
-    <property name="geometry">
-     <rect>
-      <x>280</x>
-      <y>520</y>
-      <width>601</width>
-      <height>101</height>
-     </rect>
-    </property>
-    <property name="readOnly">
-     <bool>true</bool>
-    </property>
-   </widget>
-   <widget class="QGroupBox" name="groupBox">
-    <property name="geometry">
-     <rect>
-      <x>30</x>
-      <y>270</y>
-      <width>231</width>
-      <height>281</height>
-     </rect>
-    </property>
-    <property name="title">
-     <string>기능설정</string>
-    </property>
-    <widget class="QWidget" name="verticalLayoutWidget">
-     <property name="geometry">
-      <rect>
-       <x>10</x>
-       <y>20</y>
-       <width>211</width>
-       <height>251</height>
-      </rect>
-     </property>
-     <layout class="QVBoxLayout" name="verticalLayout">
+    <item row="0" column="0">
+     <layout class="QHBoxLayout" name="horizontalLayout" stretch="1,5">
+      <property name="spacing">
+       <number>6</number>
+      </property>
+      <property name="leftMargin">
+       <number>5</number>
+      </property>
+      <property name="topMargin">
+       <number>5</number>
+      </property>
+      <property name="rightMargin">
+       <number>5</number>
+      </property>
+      <property name="bottomMargin">
+       <number>5</number>
+      </property>
       <item>
-       <widget class="QCheckBox" name="checkBox_collisionDetect">
-        <property name="text">
-         <string>충돌 감지</string>
+       <layout class="QVBoxLayout" name="verticalLayout_3" stretch="2,10,2,0,0,0,0">
+        <property name="leftMargin">
+         <number>10</number>
         </property>
-       </widget>
+        <property name="topMargin">
+         <number>10</number>
+        </property>
+        <property name="rightMargin">
+         <number>10</number>
+        </property>
+        <property name="bottomMargin">
+         <number>10</number>
+        </property>
+        <item>
+         <widget class="QPushButton" name="pushButton_importVideo">
+          <property name="font">
+           <font>
+            <family>NanumGothic</family>
+            <pointsize>12</pointsize>
+            <weight>50</weight>
+            <italic>false</italic>
+            <bold>false</bold>
+           </font>
+          </property>
+          <property name="styleSheet">
+           <string notr="true">QPushButton{background-color: rgb(75, 75, 75);
+selection-color: rgb(255, 255, 255);
+color: rgb(255, 255, 255);
+
+border: 1px solid  #ffffff;
+border-radius: 3px;
+padding-right: 5px; 
+padding-left: 5px;
+padding-top: 5px;
+padding-bottom: 5px;
+}
+
+QPushButton:hover
+{
+	background-color: rgb(125,125,125);
+	border: 0px solid  #ffffff;
+}</string>
+          </property>
+          <property name="text">
+           <string>영상 불러오기</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QPlainTextEdit" name="plainTextEdit_videoInfo">
+          <property name="maximumSize">
+           <size>
+            <width>16777215</width>
+            <height>150</height>
+           </size>
+          </property>
+          <property name="styleSheet">
+           <string notr="true">color : #ffffff</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QGroupBox" name="groupBox">
+          <property name="maximumSize">
+           <size>
+            <width>16777215</width>
+            <height>130</height>
+           </size>
+          </property>
+          <property name="font">
+           <font>
+            <family>NanumGothic</family>
+            <pointsize>10</pointsize>
+            <weight>75</weight>
+            <bold>true</bold>
+           </font>
+          </property>
+          <property name="styleSheet">
+           <string notr="true">color : #ffffff</string>
+          </property>
+          <property name="title">
+           <string>기능설정</string>
+          </property>
+          <layout class="QGridLayout" name="gridLayout">
+           <property name="sizeConstraint">
+            <enum>QLayout::SetMinAndMaxSize</enum>
+           </property>
+           <property name="leftMargin">
+            <number>10</number>
+           </property>
+           <property name="topMargin">
+            <number>10</number>
+           </property>
+           <property name="rightMargin">
+            <number>10</number>
+           </property>
+           <property name="bottomMargin">
+            <number>10</number>
+           </property>
+           <item row="0" column="0">
+            <layout class="QVBoxLayout" name="verticalLayout">
+             <property name="leftMargin">
+              <number>5</number>
+             </property>
+             <property name="topMargin">
+              <number>5</number>
+             </property>
+             <property name="rightMargin">
+              <number>5</number>
+             </property>
+             <property name="bottomMargin">
+              <number>5</number>
+             </property>
+             <item>
+              <widget class="QCheckBox" name="checkBox_collisionDetect">
+               <property name="font">
+                <font>
+                 <family>NanumGothic</family>
+                 <pointsize>10</pointsize>
+                </font>
+               </property>
+               <property name="text">
+                <string>충돌 감지</string>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <widget class="QCheckBox" name="checkBox_objectDetect">
+               <property name="font">
+                <font>
+                 <family>NanumGothic</family>
+                 <pointsize>10</pointsize>
+                </font>
+               </property>
+               <property name="text">
+                <string>객체 탐지</string>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <widget class="QCheckBox" name="checkBox_availableRouteDetect">
+               <property name="font">
+                <font>
+                 <family>NanumGothic</family>
+                 <pointsize>10</pointsize>
+                </font>
+               </property>
+               <property name="text">
+                <string>주행 가능 영역 탐지</string>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <widget class="QCheckBox" name="checkBox_mosaicFace">
+               <property name="font">
+                <font>
+                 <family>NanumGothic</family>
+                 <pointsize>10</pointsize>
+                </font>
+               </property>
+               <property name="text">
+                <string>얼굴 모자이크</string>
+               </property>
+              </widget>
+             </item>
+            </layout>
+           </item>
+          </layout>
+         </widget>
+        </item>
+        <item>
+         <widget class="QPushButton" name="pushButton_startVideo">
+          <property name="font">
+           <font>
+            <family>NanumGothic</family>
+            <pointsize>12</pointsize>
+            <weight>75</weight>
+            <bold>true</bold>
+           </font>
+          </property>
+          <property name="styleSheet">
+           <string notr="true">QPushButton{background-color: rgb(75, 75, 75);
+selection-color: rgb(255, 255, 255);
+color: rgb(255, 255, 255);
+
+border: 1px solid  #ffffff;
+border-radius: 3px;
+padding-right: 5px; 
+padding-left: 5px;
+padding-top: 5px;
+padding-bottom: 5px;
+}
+
+QPushButton:hover
+{
+	background-color: rgb(125,125,125);
+	border: 0px solid  #ffffff;
+}</string>
+          </property>
+          <property name="text">
+           <string>재생</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QPushButton" name="pushButton_stopVideo">
+          <property name="font">
+           <font>
+            <family>NanumGothic</family>
+            <pointsize>12</pointsize>
+            <weight>75</weight>
+            <bold>true</bold>
+           </font>
+          </property>
+          <property name="styleSheet">
+           <string notr="true">QPushButton{background-color: rgb(75, 75, 75);
+selection-color: rgb(255, 255, 255);
+color: rgb(255, 255, 255);
+
+border: 1px solid  #ffffff;
+border-radius: 3px;
+padding-right: 5px; 
+padding-left: 5px;
+padding-top: 5px;
+padding-bottom: 5px;
+}
+
+QPushButton:hover
+{
+	background-color: rgb(125,125,125);
+	border: 0px solid  #ffffff;
+}</string>
+          </property>
+          <property name="text">
+           <string>중지</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QPushButton" name="pushButton_restartVideo">
+          <property name="font">
+           <font>
+            <family>NanumGothic</family>
+            <pointsize>12</pointsize>
+            <weight>75</weight>
+            <bold>true</bold>
+           </font>
+          </property>
+          <property name="styleSheet">
+           <string notr="true">QPushButton{background-color: rgb(75, 75, 75);
+selection-color: rgb(255, 255, 255);
+color: rgb(255, 255, 255);
+
+border: 1px solid  #ffffff;
+border-radius: 3px;
+padding-right: 5px; 
+padding-left: 5px;
+padding-top: 5px;
+padding-bottom: 5px;
+}
+
+QPushButton:hover
+{
+	background-color: rgb(125,125,125);
+	border: 0px solid  #ffffff;
+}</string>
+          </property>
+          <property name="text">
+           <string>처음부터 다시 시작</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QLabel" name="label_videoWindow_2">
+          <property name="font">
+           <font>
+            <kerning>true</kerning>
+           </font>
+          </property>
+          <property name="text">
+           <string/>
+          </property>
+          <property name="margin">
+           <number>-1</number>
+          </property>
+         </widget>
+        </item>
+       </layout>
       </item>
       <item>
-       <widget class="QCheckBox" name="checkBox_objectDetect">
-        <property name="text">
-         <string>객체 탐지</string>
+       <layout class="QVBoxLayout" name="vboxLayout" stretch="5,1">
+        <property name="leftMargin">
+         <number>10</number>
         </property>
-       </widget>
-      </item>
-      <item>
-       <widget class="QCheckBox" name="checkBox_availableRouteDetect">
-        <property name="text">
-         <string>주행 가능 영역 탐지</string>
+        <property name="topMargin">
+         <number>10</number>
         </property>
-       </widget>
-      </item>
-      <item>
-       <widget class="QCheckBox" name="checkBox_mosaicFace">
-        <property name="text">
-         <string>얼굴 모자이크</string>
+        <property name="rightMargin">
+         <number>10</number>
         </property>
-       </widget>
-      </item>
-      <item>
-       <widget class="QPushButton" name="pushButton_applyConfig">
-        <property name="text">
-         <string>적용</string>
+        <property name="bottomMargin">
+         <number>10</number>
         </property>
-       </widget>
+        <item>
+         <layout class="QVBoxLayout" name="videoLayout">
+          <item>
+           <widget class="QLabel" name="label_videoWindow">
+            <property name="font">
+             <font>
+              <kerning>true</kerning>
+             </font>
+            </property>
+            <property name="text">
+             <string/>
+            </property>
+            <property name="margin">
+             <number>-1</number>
+            </property>
+           </widget>
+          </item>
+         </layout>
+        </item>
+        <item>
+         <widget class="QPlainTextEdit" name="plainTextEdit_mainLogger">
+          <property name="readOnly">
+           <bool>true</bool>
+          </property>
+          <property name="plainText">
+           <string>[System] 영상을 입력하세요.</string>
+          </property>
+         </widget>
+        </item>
+       </layout>
       </item>
      </layout>
-    </widget>
-   </widget>
+    </item>
+   </layout>
   </widget>
   <widget class="QMenuBar" name="menubar">
    <property name="geometry">
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>931</width>
+     <width>1000</width>
      <height>21</height>
     </rect>
    </property>
