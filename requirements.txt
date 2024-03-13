@@ -1,0 +1,4 @@
+opencv-python
+qasync
+pyqt5
+websockets
