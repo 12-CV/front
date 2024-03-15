@@ -71,7 +71,7 @@ color: rgb(124, 124, 124);
        <number>5</number>
       </property>
       <item>
-       <layout class="QVBoxLayout" name="verticalLayout_3" stretch="2,10,2,0,0,0,0">
+       <layout class="QVBoxLayout" name="verticalLayout_3" stretch="2,0,10,2,0,0,0,0">
         <property name="leftMargin">
          <number>10</number>
         </property>
@@ -116,6 +116,13 @@ QPushButton:hover
           </property>
           <property name="text">
            <string>영상 불러오기</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QPushButton" name="pushButton_importCamera">
+          <property name="text">
+           <string>카메라 불러오기</string>
           </property>
          </widget>
         </item>
@@ -305,7 +312,7 @@ QPushButton:hover
 }</string>
           </property>
           <property name="text">
-           <string>중지</string>
+           <string>정지</string>
           </property>
          </widget>
         </item>

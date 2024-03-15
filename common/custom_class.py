@@ -16,6 +16,7 @@ class CMainWindow(QMainWindow):
         self.pushButton_stopVideo: QPushButton
         self.pushButton_restartVideo: QPushButton
         self.pushButton_importVideo: QPushButton
+        self.pushButton_importCamera: QPushButton
         
         self.graphicsView_mainViewer: QGraphicsView
         self.label_videoWindow: QLabel
