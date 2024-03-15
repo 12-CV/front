@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>1000</width>
-    <height>1000</height>
+    <width>1595</width>
+    <height>780</height>
    </rect>
   </property>
   <property name="sizePolicy">
@@ -18,7 +18,7 @@
   </property>
   <property name="maximumSize">
    <size>
-    <width>1000</width>
+    <width>100000</width>
     <height>1000</height>
    </size>
   </property>
@@ -54,7 +54,7 @@ color: rgb(124, 124, 124);
      <number>5</number>
     </property>
     <item row="0" column="0">
-     <layout class="QHBoxLayout" name="horizontalLayout" stretch="1,5">
+     <layout class="QHBoxLayout" name="horizontalLayout" stretch="1,10">
       <property name="spacing">
        <number>6</number>
       </property>
@@ -71,7 +71,7 @@ color: rgb(124, 124, 124);
        <number>5</number>
       </property>
       <item>
-       <layout class="QVBoxLayout" name="verticalLayout_3" stretch="2,0,10,2,0,0,0,0">
+       <layout class="QVBoxLayout" name="verticalLayout_3" stretch="2,0,10,2,0,0,0,0,0">
         <property name="leftMargin">
          <number>10</number>
         </property>
@@ -121,6 +121,34 @@ QPushButton:hover
         </item>
         <item>
          <widget class="QPushButton" name="pushButton_importCamera">
+          <property name="font">
+           <font>
+            <family>NanumGothic</family>
+            <pointsize>12</pointsize>
+            <weight>50</weight>
+            <italic>false</italic>
+            <bold>false</bold>
+           </font>
+          </property>
+          <property name="styleSheet">
+           <string notr="true">QPushButton{background-color: rgb(75, 75, 75);
+selection-color: rgb(255, 255, 255);
+color: rgb(255, 255, 255);
+
+border: 1px solid  #ffffff;
+border-radius: 3px;
+padding-right: 5px; 
+padding-left: 5px;
+padding-top: 5px;
+padding-bottom: 5px;
+}
+
+QPushButton:hover
+{
+	background-color: rgb(125,125,125);
+	border: 0px solid  #ffffff;
+}</string>
+          </property>
           <property name="text">
            <string>카메라 불러오기</string>
           </property>
@@ -136,6 +164,9 @@ QPushButton:hover
           </property>
           <property name="styleSheet">
            <string notr="true">color : #ffffff</string>
+          </property>
+          <property name="readOnly">
+           <bool>true</bool>
           </property>
          </widget>
         </item>
@@ -351,6 +382,16 @@ QPushButton:hover
          </widget>
         </item>
         <item>
+         <widget class="QPlainTextEdit" name="plainTextEdit_mainLogger">
+          <property name="readOnly">
+           <bool>true</bool>
+          </property>
+          <property name="plainText">
+           <string>[System] 영상을 입력하세요.</string>
+          </property>
+         </widget>
+        </item>
+        <item>
          <widget class="QLabel" name="label_videoWindow_2">
           <property name="font">
            <font>
@@ -368,45 +409,19 @@ QPushButton:hover
        </layout>
       </item>
       <item>
-       <layout class="QVBoxLayout" name="vboxLayout" stretch="5,1">
-        <property name="leftMargin">
-         <number>10</number>
-        </property>
-        <property name="topMargin">
-         <number>10</number>
-        </property>
-        <property name="rightMargin">
-         <number>10</number>
-        </property>
-        <property name="bottomMargin">
-         <number>10</number>
-        </property>
+       <layout class="QHBoxLayout" name="horizontalLayout_videoLayout">
         <item>
-         <layout class="QVBoxLayout" name="videoLayout">
-          <item>
-           <widget class="QLabel" name="label_videoWindow">
-            <property name="font">
-             <font>
-              <kerning>true</kerning>
-             </font>
-            </property>
-            <property name="text">
-             <string/>
-            </property>
-            <property name="margin">
-             <number>-1</number>
-            </property>
-           </widget>
-          </item>
-         </layout>
-        </item>
-        <item>
-         <widget class="QPlainTextEdit" name="plainTextEdit_mainLogger">
-          <property name="readOnly">
-           <bool>true</bool>
+         <widget class="QLabel" name="label_videoWindow">
+          <property name="font">
+           <font>
+            <kerning>true</kerning>
+           </font>
           </property>
-          <property name="plainText">
-           <string>[System] 영상을 입력하세요.</string>
+          <property name="text">
+           <string/>
+          </property>
+          <property name="margin">
+           <number>-1</number>
           </property>
          </widget>
         </item>
@@ -421,7 +436,7 @@ QPushButton:hover
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>1000</width>
+     <width>1595</width>
      <height>21</height>
     </rect>
    </property>

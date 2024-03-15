@@ -15,13 +15,40 @@ from PyQt5.QtMultimedia import *
 from PyQt5.QtMultimediaWidgets import *
 from PyQt5.QtWidgets import QApplication
 from PyQt5.uic import loadUi
-import supervision as sv
 import numpy as np
 
 # 프로젝트 내의 모듈
 from common.custom_class import CMainWindow
 from common.function import *
+from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
+from matplotlib.figure import Figure
 
+class MyMplCanvas(FigureCanvas):
+    def __init__(self, parent=None, width=5, height=7, dpi=100):
+        fig = Figure(figsize=(width, height), dpi=dpi)
+        self.axes = fig.add_subplot(111)
+        fig.set_facecolor('black')
+        self.axes.tick_params(axis='both', colors='white', labelcolor='white')
+        self.clear_axes()
+
+
+        super(MyMplCanvas, self).__init__(fig)
+    
+    def clear_axes(self):
+        self.axes.clear()
+        self.axes.set_xlim(-35, 35)
+        self.axes.set_ylim(0, 50)
+        self.axes.set_facecolor('black')
+
+        # 왼쪽과 오른쪽 spine 숨기기
+        self.axes.spines['top'].set_visible(False)  # 상단 spine 숨기기
+        self.axes.spines['bottom'].set_position('zero')  # 하단 spine을 0 위치로 이동
+        self.axes.spines['left'].set_visible(False)  # 왼쪽 spine 숨기기
+        self.axes.spines['right'].set_position('zero')  # 오른쪽 spine을 가운데로 이동
+        # Y 축 눈금을 오른쪽에 표시
+        self.axes.yaxis.tick_right()
+
+        self.axes.plot([-30, 0, 30], [20, 0, 20], color='white', linestyle='--', marker='', linewidth=0.7)
 
 class MainApp(CMainWindow):
     frame_queue = asyncio.Queue(3)
@@ -31,6 +58,9 @@ class MainApp(CMainWindow):
     def __init__(self, mode):
         super().__init__()
         loadUi("./ui/main_window.ui", self)
+        
+        self.mpl_canvas = MyMplCanvas(self)
+        self.horizontalLayout_videoLayout.addWidget(self.mpl_canvas)
 
         self.mode = mode
         self.pushButton_importVideo.clicked.connect(self.import_video_button_clicked)
@@ -113,14 +143,11 @@ class MainApp(CMainWindow):
 
         server_uri1 = "ws://10.28.224.52:30300/ws"
         server_uri2 = "ws://10.28.224.52:30301/ws"
-        async with websockets.connect(server_uri1) as websocket1, websockets.connect(server_uri2) as websocket2:
-            # await asyncio.gather(
-            #     self.send_frame(websocket, self.cap), 
-            #     self.receive_frame(websocket), 
-            #     self.render_frame((self.video_height, self.video_width), self.fps)
-            # )
 
-             # 각 작업을 Task로 생성
+        server_uri1 = "ws://10.28.224.34:30348/ws"
+        server_uri2 = "ws://10.28.224.34:30349/ws"
+
+        async with websockets.connect(server_uri1) as websocket1, websockets.connect(server_uri2) as websocket2:
             self.send_task = asyncio.create_task(self.send_frame(websocket1, websocket2, self.cap))
             self.receive_task1 = asyncio.create_task(self.receive_frame(websocket1))
             self.receive_task2 = asyncio.create_task(self.receive_frame(websocket2))
@@ -130,13 +157,12 @@ class MainApp(CMainWindow):
             self.task_list.append(self.receive_task1)
             self.task_list.append(self.receive_task2)
             self.task_list.append(self.render_task)
-            # 생성된 모든 Task들을 기다립니다.
             await asyncio.gather(
                 self.send_task, 
                 self.receive_task1, 
                 self.receive_task2, 
                 self.render_task,
-                return_exceptions=True  # 각 태스크의 예외를 반환하도록 설정
+                return_exceptions=True  
             )
 
 
@@ -171,15 +197,15 @@ class MainApp(CMainWindow):
                 mosaic_area = cv2.resize(mosaic_area, (X,Y))
                 mosaic_area = cv2.resize(mosaic_area, (x2 - x1, y2 - y1), interpolation=cv2.INTER_NEAREST)
                 frame[y1:y2, x1:x2] = mosaic_area
-            if max_point > 10:
+            # if max_point > 10:
                 '''corner_annotator = sv.BoxCornerAnnotator()
                 frame = corner_annotator.annotate(
                 scene=frame.copy(),
                 detections=detections
                 )'''
-                cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
-                text = f"Class ID: {class_id}, Max Point: {int(max_point)}, Middle Point: {int(middle_point)}"
-                cv2.putText(frame, text, (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
+            cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
+            text = f"Class ID: {class_id}, Max Point: {int(max_point)}, Middle Point: {int(middle_point)}"
+            cv2.putText(frame, text, (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
 
     async def send_frame(self, websocket1, websocket2, cap):
         frame_count = 0
@@ -235,17 +261,36 @@ class MainApp(CMainWindow):
                 fps_time = time.time()
 
             cv2.putText(frame, f"FPS: {FPS}", (frame.shape[1] - 80, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 1, cv2.LINE_AA)
-            
 
             if elapsed < time_per_frame:
                 await asyncio.sleep(time_per_frame - elapsed)
 
             # cv2.imshow("Object Detection", frame)
             self.update_frame(frame)
+            self.update_figure(metadata)
             prev_time = time.time()
 
             frame_count += 1
+
+    def update_figure(self, metadata, figure_size=[70, 70]):
+        self.mpl_canvas.clear_axes()
+        for bbox in metadata:
+            x1, y1, x2, y2 = bbox[:4]
+            class_id = bbox[4]
+            median_point = bbox[5]
+            max_point = bbox[6]                     
+            mean_point = bbox[7] 
+            middle_point = bbox[8]
+            if class_id != 9:
+                x = int(((x1 + x2)/2) * figure_size[1] / 640) - 35
+                # max point에 따라 log로 0~70 out
+                y = 70 - np.log(max_point + 1) * (70 / np.log(256))
+                # max point에 따라 선형으로 0~70 out
+                # y = 70 * (1 - max_point / 255)
+                y += int(abs(x) * (2/3))
+                self.mpl_canvas.axes.plot(x, y, linestyle='none', marker='*', color="red", alpha=1)
             
+        self.mpl_canvas.draw()
 def main():
     parser = argparse.ArgumentParser(description='Program Mode')
     parser.add_argument('--mode', type=str, help='DEV or PROD', default="DEV")
