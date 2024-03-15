@@ -19,3 +19,5 @@ class CMainWindow(QMainWindow):
         
         self.graphicsView_mainViewer: QGraphicsView
         self.label_videoWindow: QLabel
+
+        self.horizontalLayout_videoLayout: QHBoxLayout
