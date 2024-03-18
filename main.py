@@ -144,7 +144,6 @@ class MainApp(CMainWindow):
         else:
             show_message(self, "카메라가 존재하지 않습니다.")
             return
-        
     @qasync.asyncSlot()
     async def import_video_button_clicked(self):
         # file_name, _ = QFileDialog.getOpenFileName(self, "영상 불러오기", "", "Video Files (*.mp4 *.avi *.mov *.mkv);;All Files (*)")
@@ -224,69 +223,6 @@ class MainApp(CMainWindow):
         qt_image = QImage(rgb_image.data, w, h, bytes_per_line, QImage.Format_RGB888)
         self.label_videoWindow.setPixmap(QPixmap.fromImage(qt_image))
     
-    def draw_bboxes(self, frame, bboxes, frame_shape):
-        for bbox in bboxes:
-            x1, y1, x2, y2 = bbox[:4]
-            class_id = bbox[4]
-            median_point = bbox[5]
-            max_point = bbox[6]                       
-            mean_point = bbox[7] 
-            middle_point = bbox[8]
-
-            # visualize figure 계산에 따른 위험 객체 판별 
-            stat = ''
-            if class_id != 9:
-                # 각도 근사시 중앙 쏠림을 막기위한 보정치
-                corr = 10
-
-                # 객체 x축의 중간값을 각도로 수정 (-45 ~ 45도)
-                r = ((x1 + x2) / 2 - 320) * (45 / 320)
-                r = math.radians(r)
-
-                # median 값을 실제 거리로 근사
-                median_depth = 21 - (median_point * 4 / 3) + corr
-                
-                # depth와 각도에 따른 x, y값
-                x = median_depth * math.sin(r)
-                y = median_depth * math.cos(r) - corr
-
-                # x축 너비의 따른 원 크기 조절
-                rad = (x2 - x1) / 160
-
-                if (x ** 2 + y ** 2) ** 0.5 - rad < 5: # 가까운 경우
-                    stat = 'Danger'
-
-                elif (x ** 2 + y ** 2) ** 0.5 - rad < 10: # 덜 가까운 경우
-                    stat = 'Warning'
-
-                else:
-                    stat = 'Safe'
-                    
-            # 원래 프레임의 크기에 맞게 bbox 좌표 조정
-            x1 = int(x1 * frame_shape[1] / 640)
-            y1 = int(y1 * frame_shape[0] / 640)
-            x2 = int(x2 * frame_shape[1] / 640)
-            y2 = int(y2 * frame_shape[0] / 640)
-            #detections = sv.Detections(np.array([x1,y1,x2,y2]))
-            if class_id == 9:
-                mosaic_area = frame[y1:y2, x1:x2]
-                X, Y = x1//30, y1//30
-                if X <= 0:
-                    X = 1
-                if Y <= 0:
-                    Y = 1
-                mosaic_area = cv2.resize(mosaic_area, (X,Y))
-                mosaic_area = cv2.resize(mosaic_area, (x2 - x1, y2 - y1), interpolation=cv2.INTER_NEAREST)
-                frame[y1:y2, x1:x2] = mosaic_area
-            # if max_point > 10:
-                '''corner_annotator = sv.BoxCornerAnnotator()
-                frame = corner_annotator.annotate(
-                scene=frame.copy(),
-                detections=detections
-                )'''
-            cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
-            # text = f"{int(max_point)}, {int(middle_point)}"
-            cv2.putText(frame, stat, (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
 
     async def send_frame(self, websocket1, websocket2, cap):
         frame_count = 0
@@ -294,8 +230,6 @@ class MainApp(CMainWindow):
         while cap.isOpened():
             current_time = time.time() - start_time
             video_time = cap.get(cv2.CAP_PROP_POS_MSEC) / 1000
-            #print(f'current_time: {current_time}')
-            #print(f'video_time: {video_time}')
             ret, frame = cap.read()
             frame = center_square(frame)
             if (current_time - video_time) > 1:
@@ -332,7 +266,6 @@ class MainApp(CMainWindow):
         while True:
             metadata = await self.metadata_queue.get()
             frame = await self.frame_queue.get()
-            self.draw_bboxes(frame, metadata, frame_shape)
 
             curr_time = time.time()
             elapsed = curr_time - prev_time
@@ -344,20 +277,20 @@ class MainApp(CMainWindow):
 
             cv2.putText(frame, f"FPS: {FPS}", (frame.shape[1] - 80, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 1, cv2.LINE_AA)
 
-            # if elapsed < time_per_frame:
-            #     await asyncio.sleep(time_per_frame - elapsed)
+            if elapsed < 0.05:
+                await asyncio.sleep(time_per_frame - elapsed)
 
-            # cv2.imshow("Object Detection", frame)
+            self.update_figure(metadata, frame)
             self.update_frame(frame)
-            self.update_figure(metadata)
             prev_time = time.time()
 
             frame_count += 1
 
-    def update_figure(self, metadata):
+    def update_figure(self, metadata, frame):
         self.mpl_canvas.clear_axes()
         for bbox in metadata:
             x1, y1, x2, y2 = bbox[:4]
+            x1, y1, x2, y2 = int(x1), int(y1), int(x2), int(y2)
             class_id = bbox[4]
             median_point = bbox[5]
             max_point = bbox[6]                     
@@ -380,32 +313,47 @@ class MainApp(CMainWindow):
 
                 # x축 너비의 따른 원 크기 조절
                 rad = (x2 - x1) / 160
-                distance = (x ** 2 + y ** 2) ** 0.5 - rad
 
                 if y < 0:
                     y = 0
-                    
+                distance = (x ** 2 + y ** 2) ** 0.5 - rad
+
                 if distance < 5: # 가까운 경우
-                    if class_id == 0: # 사람인 경우
-                        circle = Circle(xy=(x, y), radius=rad, edgecolor='red', facecolor='red')
-                    else:
-                        circle = Circle(xy=(x, y), radius=rad, edgecolor='blue', facecolor='blue')
+                    stat = 'Danger'
+                    color = (0, 0, 255)
+                    color_str = "red"
 
                 elif distance < 10: # 덜 가까운 경우
-                    if class_id == 0: # 사람인 경우
-                        circle = Circle(xy=(x, y), radius=rad, edgecolor='red', facecolor=(0.5, 0, 0))
-                    else:
-                        circle = Circle(xy=(x, y), radius=rad, edgecolor='blue', facecolor=(0, 0, 0.5))
+                    stat = 'Warning'
+                    color = (0, 165, 255)
+                    color_str = "orange"
 
                 else:
-                    if class_id == 0: # 사람인 경우
-                        circle = Circle(xy=(x, y), radius=rad, edgecolor='red', facecolor='none')
-                    else:
-                        circle = Circle(xy=(x, y), radius=rad, edgecolor='blue', facecolor='none')
+                    stat = 'Safe'
+                    color = (0, 255, 0)
+                    color_str = "green"
 
+                # if y < 0 and stat == "Danger":
+                #     y = 0
+
+                circle = Circle(xy=(x, y), radius=rad, edgecolor=color_str, facecolor=color_str)
                 self.play_beep(distance)
                 self.mpl_canvas.axes.add_patch(circle)
+
+            if class_id == 9:
+                mosaic_area = frame[y1:y2, x1:x2]
+                X, Y = x1//30, y1//30
+                if X <= 0:
+                    X = 1
+                if Y <= 0:
+                    Y = 1
+                mosaic_area = cv2.resize(mosaic_area, (X,Y))
+                mosaic_area = cv2.resize(mosaic_area, (x2 - x1, y2 - y1), interpolation=cv2.INTER_NEAREST)
+                frame[y1:y2, x1:x2] = mosaic_area
             
+            cv2.rectangle(frame, (x1, y1), (x2, y2), color, 2)
+            cv2.putText(frame, stat, (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
+
         self.mpl_canvas.draw()
 def main():
     parser = argparse.ArgumentParser(description='Program Mode')
