@@ -25,6 +25,15 @@ from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
 from matplotlib.patches import Ellipse, Circle
 
+server_uris = [
+    # "ws://10.28.224.34:30348/ws", # 재영서버
+    "ws://10.28.224.34:30349/ws", # 재영 리뉴얼 서버
+    # "ws://10.28.224.216:30394/ws", # 혜나서버
+    # "ws://10.28.224.181:30316/ws", # 민주서버
+    # "ws://10.28.224.115:30057/ws", # 동우서버
+    # "ws://10.28.224.52:30300/ws", # 세진서버
+]
+FRAME_QUEUE_LIMIT = 1
 
 def center_square(image):
     # 이미지 크기 확인
@@ -52,7 +61,7 @@ class MyMplCanvas(FigureCanvas):
 
         super(MyMplCanvas, self).__init__(fig)
         self.setFixedSize(640, 640)
-    
+
     def clear_axes(self):
         self.axes.clear()
         self.axes.set_xlim(-10, 10)
@@ -79,7 +88,7 @@ class MyMplCanvas(FigureCanvas):
         # self.axes.plot([-30, 0, 30], [20, 0, 20], color='white', linestyle='--', marker='', linewidth=0.7)
 
 class MainApp(CMainWindow):
-    frame_queue = asyncio.Queue(3)
+    frame_queue = asyncio.Queue(FRAME_QUEUE_LIMIT)
     metadata_queue = asyncio.Queue()
     task_list = []
 
@@ -98,15 +107,20 @@ class MainApp(CMainWindow):
         self.pushButton_startVideo.clicked.connect(self.start_video_button_clicked)
         self.pushButton_stopVideo.clicked.connect(self.stop_video_button_clicked)
         self.pushButton_restartVideo.clicked.connect(self.restart_video_button_clicked)
+        
+    async def custom_init(self):
+        self.connections = await self.connect_servers(server_uris)
+        print(f"연결된 서버의 개수는 {len(self.connections)} 입니다.")
 
     def play_beep(self, y):
         current_time = time.time()
         interval = 1.5  # 기본 간격
+        interval = 999999  # 기본 간격
 
         if y < 5:
-            interval = 0.2
-        elif y < 10:
-            interval = 0.6
+            interval = 0.1
+        # elif y < 10:
+        #     interval = 0.6
 
         if current_time - self.last_beep_time >= interval:
             # 오디오 파일 경로 설정
@@ -117,7 +131,6 @@ class MainApp(CMainWindow):
             self.beep_player.setMedia(content)
             self.beep_player.play()
             self.last_beep_time = current_time  # 마지막 소리 재생 시간 업데이트
-
 
     @qasync.asyncSlot()
     async def import_camera_button_clicked(self):
@@ -144,6 +157,7 @@ class MainApp(CMainWindow):
         else:
             show_message(self, "카메라가 존재하지 않습니다.")
             return
+    
     @qasync.asyncSlot()
     async def import_video_button_clicked(self):
         # file_name, _ = QFileDialog.getOpenFileName(self, "영상 불러오기", "", "Video Files (*.mp4 *.avi *.mov *.mkv);;All Files (*)")
@@ -193,28 +207,30 @@ class MainApp(CMainWindow):
         if not file_name:
             show_message(self, "파일을 먼저 선택해주세요!")
             return
+        
+        self.task_list.append(asyncio.create_task(self.send_frame(self.connections, self.cap)))
+        self.task_list.extend([asyncio.create_task(self.receive_frame(socket)) for socket in self.connections])
+        self.task_list.append(asyncio.create_task(self.render_frame((self.video_height, self.video_width), self.fps)))
+        
+        await asyncio.gather(
+            *self.task_list,
+            return_exceptions=True  
+        )
 
-        server_uri1 = "ws://10.28.224.34:30348/ws"
-        server_uri2 = "ws://10.28.224.34:30349/ws"
+    async def connect_servers(self, server_uris):
+        async def check_websocket(uri):
+            try:
+                socket = await websockets.connect(uri, timeout=1)
+                return socket
+            except Exception as e:
+                return None
+        
+        tasks = [check_websocket(uri) for uri in server_uris]
+        results = await asyncio.gather(*tasks)
+        
+        valid_connections = [result for result in results if result is not None]
 
-        async with websockets.connect(server_uri1) as websocket1, websockets.connect(server_uri2) as websocket2:
-            self.send_task = asyncio.create_task(self.send_frame(websocket1, websocket2, self.cap))
-            self.receive_task1 = asyncio.create_task(self.receive_frame(websocket1))
-            self.receive_task2 = asyncio.create_task(self.receive_frame(websocket2))
-            self.render_task = asyncio.create_task(self.render_frame((self.video_height, self.video_width), self.fps))
-
-            self.task_list.append(self.send_task)
-            self.task_list.append(self.receive_task1)
-            self.task_list.append(self.receive_task2)
-            self.task_list.append(self.render_task)
-            await asyncio.gather(
-                self.send_task, 
-                self.receive_task1, 
-                self.receive_task2, 
-                self.render_task,
-                # return_exceptions=True  
-            )
-
+        return valid_connections
 
     def update_frame(self, frame):
         rgb_image = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
@@ -223,17 +239,20 @@ class MainApp(CMainWindow):
         qt_image = QImage(rgb_image.data, w, h, bytes_per_line, QImage.Format_RGB888)
         self.label_videoWindow.setPixmap(QPixmap.fromImage(qt_image))
     
+    async def send_frame(self, sockets, cap):
+        print(f"프레임 보내기를 시작합니다.")
+        print(f"받은 서버목록 {sockets}")
 
-    async def send_frame(self, websocket1, websocket2, cap):
         frame_count = 0
         start_time = time.time()
         while cap.isOpened():
+
             current_time = time.time() - start_time
             video_time = cap.get(cv2.CAP_PROP_POS_MSEC) / 1000
             ret, frame = cap.read()
             frame = center_square(frame)
-            if (current_time - video_time) > 1:
-                continue
+            # if (current_time - video_time) > 1:
+            #     continue
             if ret == None:
                 break
             try:
@@ -244,10 +263,9 @@ class MainApp(CMainWindow):
             
             await self.frame_queue.put(frame)
             _, img_encoded = cv2.imencode('.jpg', send_frame)
-            if frame_count % 2 == 0:
-                await websocket1.send(img_encoded.tobytes())
-            else:
-                await websocket2.send(img_encoded.tobytes())
+
+            await sockets[frame_count % len(sockets)].send(img_encoded.tobytes())
+            print(f"{frame_count % len(sockets)} 번째 서버에 프레임을 보냈습니다.")
             frame_count += 1
 
     async def receive_frame(self, websocket):
@@ -277,7 +295,7 @@ class MainApp(CMainWindow):
 
             cv2.putText(frame, f"FPS: {FPS}", (frame.shape[1] - 80, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 1, cv2.LINE_AA)
 
-            if elapsed < 0.05:
+            if elapsed < 0.03:
                 await asyncio.sleep(time_per_frame - elapsed)
 
             self.update_figure(metadata, frame)
@@ -296,32 +314,18 @@ class MainApp(CMainWindow):
             max_point = bbox[6]                     
             mean_point = bbox[7] 
             middle_point = bbox[8]
+            x = bbox[9]
+            y = bbox[10]
+            rad = bbox[11]
+            distance = bbox[12]
+
             if class_id != 9:
-                # 각도 근사시 중앙 쏠림을 막기위한 보정치
-                corr = 15
-
-                # 객체 x축의 중간값을 각도로 수정 (-45 ~ 45도)
-                r = ((x1 + x2) / 2 - 320) * (45 / 320)
-                r = math.radians(r)
-
-                # median 값을 실제 거리로 근사
-                median_depth = 21 - (median_point * 4 / 3) + corr
-                
-                # depth와 각도에 따른 x, y값
-                x = median_depth * math.sin(r)
-                y = median_depth * math.cos(r) - corr
-
-                # x축 너비의 따른 원 크기 조절
-                rad = (x2 - x1) / 160
-
-                distance = (x ** 2 + y ** 2) ** 0.5 - rad
-                
-                if distance < 5: # 가까운 경우
+                if distance < 5:
                     stat = 'Danger'
                     color = (0, 0, 255)
                     color_str = "red"
 
-                elif distance < 10: # 덜 가까운 경우
+                elif distance < 10:
                     stat = 'Warning'
                     color = (0, 165, 255)
                     color_str = "orange"
@@ -331,30 +335,27 @@ class MainApp(CMainWindow):
                     color = (0, 255, 0)
                     color_str = "green"
 
-                if y < 0 and stat in ["Danger", "Warning"]:
-                    y = -np.log(-y + 1) + 0.7
-
-                circle = Circle(xy=(x, y), radius=rad, edgecolor=color_str, facecolor=color_str)
+                # circle = Circle(xy=(x, y), radius=rad, edgecolor=color_str, facecolor=color_str)
                 self.play_beep(distance)
-                self.mpl_canvas.axes.add_patch(circle)
+                # self.mpl_canvas.axes.add_patch(circle)
 
-                # 거리 20 이내의 객체만 Detecting한다.
-                if distance < 20:
-                    cv2.rectangle(frame, (x1, y1), (x2, y2), color, 2)
-                    cv2.putText(frame, stat, (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
+                # 거리 20 이내의 객체만 Bbox를 그려준다.
+                # if distance < 20:
+                #     cv2.rectangle(frame, (x1, y1), (x2, y2), color, 2)
+                #     cv2.putText(frame, stat, (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
 
-            else:
-                mosaic_area = frame[y1:y2, x1:x2]
-                X, Y = x1//30, y1//30
-                if X <= 0:
-                    X = 1
-                if Y <= 0:
-                    Y = 1
-                mosaic_area = cv2.resize(mosaic_area, (X,Y))
-                mosaic_area = cv2.resize(mosaic_area, (x2 - x1, y2 - y1), interpolation=cv2.INTER_NEAREST)
-                frame[y1:y2, x1:x2] = mosaic_area
+            # else:
+            #     mosaic_area = frame[y1:y2, x1:x2]
+            #     X, Y = x1//30, y1//30
+            #     if X <= 0:
+            #         X = 1
+            #     if Y <= 0:
+            #         Y = 1
+            #     mosaic_area = cv2.resize(mosaic_area, (X,Y))
+            #     mosaic_area = cv2.resize(mosaic_area, (x2 - x1, y2 - y1), interpolation=cv2.INTER_NEAREST)
+            #     frame[y1:y2, x1:x2] = mosaic_area
             
-        self.mpl_canvas.draw()
+        # self.mpl_canvas.draw()
 def main():
     parser = argparse.ArgumentParser(description='Program Mode')
     parser.add_argument('--mode', type=str, help='DEV or PROD', default="DEV")
@@ -365,10 +366,13 @@ def main():
     asyncio.set_event_loop(loop)
 
     main_window = MainApp(args.mode)
+    loop.create_task(main_window.custom_init())
     main_window.show()
 
     with loop:
         loop.run_forever()
-
+    for con in main_window.connections:
+        con.close()
+    
 if __name__ == '__main__':
     main()
