@@ -43,15 +43,15 @@ def center_square(image):
     return cropped_image
 
 class MyMplCanvas(FigureCanvas):
-    def __init__(self, parent=None, width=5, height=7, dpi=100):
+    def __init__(self, parent=None, width=4, height=6, dpi=100):
         fig = Figure(figsize=(width, height), dpi=dpi)
         self.axes = fig.add_subplot(111)
         fig.set_facecolor('black')
         self.axes.tick_params(axis='both', colors='white', labelcolor='white')
         self.clear_axes()
 
-
         super(MyMplCanvas, self).__init__(fig)
+        self.setFixedSize(640, 640)
     
     def clear_axes(self):
         self.axes.clear()
@@ -89,13 +89,35 @@ class MainApp(CMainWindow):
         
         self.mpl_canvas = MyMplCanvas(self)
         self.horizontalLayout_videoLayout.addWidget(self.mpl_canvas)
-
+        self.last_beep_time = time.time()
+        self.beep_player = QMediaPlayer()
+        
         self.mode = mode
         self.pushButton_importVideo.clicked.connect(self.import_video_button_clicked)
         self.pushButton_importCamera.clicked.connect(self.import_camera_button_clicked)
         self.pushButton_startVideo.clicked.connect(self.start_video_button_clicked)
         self.pushButton_stopVideo.clicked.connect(self.stop_video_button_clicked)
         self.pushButton_restartVideo.clicked.connect(self.restart_video_button_clicked)
+
+    def play_beep(self, y):
+        current_time = time.time()
+        interval = 1.5  # 기본 간격
+
+        if y < 5:
+            interval = 0.2
+        elif y < 10:
+            interval = 0.6
+
+        if current_time - self.last_beep_time >= interval:
+            # 오디오 파일 경로 설정
+            audioFile = 'beep.mp3'
+            url = QUrl.fromLocalFile(audioFile)
+            content = QMediaContent(url)
+            
+            self.beep_player.setMedia(content)
+            self.beep_player.play()
+            self.last_beep_time = current_time  # 마지막 소리 재생 시간 업데이트
+
 
     @qasync.asyncSlot()
     async def import_camera_button_clicked(self):
@@ -173,8 +195,8 @@ class MainApp(CMainWindow):
             show_message(self, "파일을 먼저 선택해주세요!")
             return
 
-        server_uri1 = "ws://10.28.224.115:30057/ws"
-        server_uri2 = "ws://10.28.224.115:30057/ws"
+        server_uri1 = "ws://10.28.224.34:30348/ws"
+        server_uri2 = "ws://10.28.224.34:30349/ws"
 
         async with websockets.connect(server_uri1) as websocket1, websockets.connect(server_uri2) as websocket2:
             self.send_task = asyncio.create_task(self.send_frame(websocket1, websocket2, self.cap))
@@ -191,7 +213,7 @@ class MainApp(CMainWindow):
                 self.receive_task1, 
                 self.receive_task2, 
                 self.render_task,
-                return_exceptions=True  
+                # return_exceptions=True  
             )
 
 
@@ -322,8 +344,8 @@ class MainApp(CMainWindow):
 
             cv2.putText(frame, f"FPS: {FPS}", (frame.shape[1] - 80, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 1, cv2.LINE_AA)
 
-            if elapsed < time_per_frame:
-                await asyncio.sleep(time_per_frame - elapsed)
+            # if elapsed < time_per_frame:
+            #     await asyncio.sleep(time_per_frame - elapsed)
 
             # cv2.imshow("Object Detection", frame)
             self.update_frame(frame)
@@ -358,14 +380,18 @@ class MainApp(CMainWindow):
 
                 # x축 너비의 따른 원 크기 조절
                 rad = (x2 - x1) / 160
+                distance = (x ** 2 + y ** 2) ** 0.5 - rad
 
-                if (x ** 2 + y ** 2) ** 0.5 - rad < 5: # 가까운 경우
+                if y < 0:
+                    y = 0
+                    
+                if distance < 5: # 가까운 경우
                     if class_id == 0: # 사람인 경우
                         circle = Circle(xy=(x, y), radius=rad, edgecolor='red', facecolor='red')
                     else:
                         circle = Circle(xy=(x, y), radius=rad, edgecolor='blue', facecolor='blue')
 
-                elif (x ** 2 + y ** 2) ** 0.5 - rad < 10: # 덜 가까운 경우
+                elif distance < 10: # 덜 가까운 경우
                     if class_id == 0: # 사람인 경우
                         circle = Circle(xy=(x, y), radius=rad, edgecolor='red', facecolor=(0.5, 0, 0))
                     else:
@@ -377,6 +403,7 @@ class MainApp(CMainWindow):
                     else:
                         circle = Circle(xy=(x, y), radius=rad, edgecolor='blue', facecolor='none')
 
+                self.play_beep(distance)
                 self.mpl_canvas.axes.add_patch(circle)
             
         self.mpl_canvas.draw()
