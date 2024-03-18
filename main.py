@@ -298,7 +298,7 @@ class MainApp(CMainWindow):
             middle_point = bbox[8]
             if class_id != 9:
                 # 각도 근사시 중앙 쏠림을 막기위한 보정치
-                corr = 10
+                corr = 15
 
                 # 객체 x축의 중간값을 각도로 수정 (-45 ~ 45도)
                 r = ((x1 + x2) / 2 - 320) * (45 / 320)
@@ -314,10 +314,8 @@ class MainApp(CMainWindow):
                 # x축 너비의 따른 원 크기 조절
                 rad = (x2 - x1) / 160
 
-                if y < 0:
-                    y = 0
                 distance = (x ** 2 + y ** 2) ** 0.5 - rad
-
+                
                 if distance < 5: # 가까운 경우
                     stat = 'Danger'
                     color = (0, 0, 255)
@@ -333,14 +331,19 @@ class MainApp(CMainWindow):
                     color = (0, 255, 0)
                     color_str = "green"
 
-                # if y < 0 and stat == "Danger":
-                #     y = 0
+                if y < 0 and stat in ["Danger", "Warning"]:
+                    y = -np.log(-y + 1) + 0.7
 
                 circle = Circle(xy=(x, y), radius=rad, edgecolor=color_str, facecolor=color_str)
                 self.play_beep(distance)
                 self.mpl_canvas.axes.add_patch(circle)
 
-            if class_id == 9:
+                # 거리 20 이내의 객체만 Detecting한다.
+                if distance < 20:
+                    cv2.rectangle(frame, (x1, y1), (x2, y2), color, 2)
+                    cv2.putText(frame, stat, (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
+
+            else:
                 mosaic_area = frame[y1:y2, x1:x2]
                 X, Y = x1//30, y1//30
                 if X <= 0:
@@ -351,9 +354,6 @@ class MainApp(CMainWindow):
                 mosaic_area = cv2.resize(mosaic_area, (x2 - x1, y2 - y1), interpolation=cv2.INTER_NEAREST)
                 frame[y1:y2, x1:x2] = mosaic_area
             
-            cv2.rectangle(frame, (x1, y1), (x2, y2), color, 2)
-            cv2.putText(frame, stat, (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
-
         self.mpl_canvas.draw()
 def main():
     parser = argparse.ArgumentParser(description='Program Mode')
