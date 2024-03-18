@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>1595</width>
+    <width>1532</width>
     <height>780</height>
    </rect>
   </property>
@@ -436,7 +436,7 @@ QPushButton:hover
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>1595</width>
+     <width>1532</width>
      <height>21</height>
     </rect>
    </property>
