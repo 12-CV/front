@@ -4,6 +4,7 @@ import asyncio
 import json
 import sys
 import time
+import typing
 
 # 외부 라이브러리
 import cv2
@@ -32,9 +33,9 @@ server_uris = [
     # "ws://10.28.224.181:30316/ws", # 민주서버
     # "ws://10.28.224.115:30057/ws", # 동우서버
     # "ws://10.28.224.52:30300/ws", # 세진서버
-    "ws://10.28.224.52:30301/ws", # 세진 리뉴얼 서버
+    # "ws://10.28.224.52:30301/ws", # 세진 리뉴얼 서버
 ]
-FRAME_QUEUE_LIMIT = 3
+FRAME_QUEUE_LIMIT = 1
 
 def center_square(image):
     # 이미지 크기 확인
@@ -91,6 +92,7 @@ class MyMplCanvas(FigureCanvas):
 class MainApp(CMainWindow):
     frame_queue = asyncio.Queue(FRAME_QUEUE_LIMIT)
     metadata_queue = asyncio.Queue()
+    temp_queue = asyncio.Queue()
     task_list = []
 
     def __init__(self, mode):
@@ -204,13 +206,17 @@ class MainApp(CMainWindow):
             show_message(self, "파일을 먼저 선택해주세요!")
             return
         
+        # self.task_list.append(asyncio.create_task(self.send_frame(self.connections, self.cap)))
+        # self.task_list.extend([asyncio.create_task(self.receive_frame(socket)) for socket in self.connections])
+        # self.task_list.append(asyncio.create_task(self.render_frame((self.video_height, self.video_width), self.fps)))
+
         self.task_list.append(asyncio.create_task(self.send_frame(self.connections, self.cap)))
-        self.task_list.extend([asyncio.create_task(self.receive_frame(socket)) for socket in self.connections])
-        self.task_list.append(asyncio.create_task(self.render_frame((self.video_height, self.video_width), self.fps)))
+        self.task_list.extend([asyncio.create_task(self.receive_frame2(socket)) for socket in self.connections])
+        self.task_list.append(asyncio.create_task(self.render_frame2((self.video_height, self.video_width), self.fps)))
         
         await asyncio.gather(
             *self.task_list,
-            return_exceptions=True  
+            # return_exceptions=True  
         )
 
     async def connect_servers(self, server_uris):
@@ -260,7 +266,6 @@ class MainApp(CMainWindow):
             _, img_encoded = cv2.imencode('.jpg', frame)
 
             await sockets[frame_count % len(sockets)].send(img_encoded.tobytes())
-            # print(f"{frame_count % len(sockets)} 번째 서버에 프레임을 보냈습니다.")
             frame_count += 1
 
     async def receive_frame(self, websocket):
@@ -269,6 +274,12 @@ class MainApp(CMainWindow):
             result_dict = json.loads(result)
             bboxes = result_dict.get("bboxes", [])
             await self.metadata_queue.put(bboxes)
+
+    async def receive_frame2(self, websocket):
+        while True:
+            data = await websocket.recv()
+            image = cv2.imdecode(np.frombuffer(data, dtype=np.uint8), cv2.IMREAD_COLOR)
+            await self.temp_queue.put(image)
 
     async def render_frame(self, frame_shape, fps):
         FPS = fps
@@ -290,10 +301,38 @@ class MainApp(CMainWindow):
 
             cv2.putText(frame, f"FPS: {FPS}", (frame.shape[1] - 80, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 1, cv2.LINE_AA)
 
-            # if elapsed < 0.03:
-            #     await asyncio.sleep(time_per_frame - elapsed)
+            if elapsed < 0.03:
+                await asyncio.sleep(time_per_frame - elapsed)
 
-            # self.update_figure(metadata, frame)
+            self.update_figure(metadata, frame)
+            self.update_frame(frame)
+            prev_time = time.time()
+
+            frame_count += 1
+
+
+    async def render_frame2(self, frame_shape, fps):
+        FPS = fps
+        time_per_frame = 1 / fps
+        prev_time = time.time() - 1
+        fps_time = time.time()
+        frame_count = 0
+        while True:
+            frame = await self.temp_queue.get()
+            frame = await self.frame_queue.get()
+            curr_time = time.time()
+            elapsed = curr_time - prev_time
+
+            if 1 < (time.time() - fps_time):
+                FPS = frame_count
+                frame_count = 0
+                fps_time = time.time()
+
+            cv2.putText(frame, f"FPS: {FPS}", (frame.shape[1] - 80, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 1, cv2.LINE_AA)
+
+            if elapsed < 0.03:
+                await asyncio.sleep(time_per_frame - elapsed)
+
             self.update_frame(frame)
             prev_time = time.time()
 
