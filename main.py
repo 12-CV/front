@@ -16,12 +16,31 @@ from PyQt5.QtMultimediaWidgets import *
 from PyQt5.QtWidgets import QApplication
 from PyQt5.uic import loadUi
 import numpy as np
+import math
 
 # 프로젝트 내의 모듈
 from common.custom_class import CMainWindow
 from common.function import *
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
+from matplotlib.patches import Ellipse, Circle
+
+
+def center_square(image):
+    # 이미지 크기 확인
+    height, width, _ = image.shape
+
+    # 가로와 세로 중 짧은 길이 결정
+    min_dim = min(height, width)
+
+    # 정사각형으로 이미지 자르기
+    start_x = (width - min_dim) // 2
+    start_y = (height - min_dim) // 2
+    end_x = start_x + min_dim
+    end_y = start_y + min_dim
+    cropped_image = image[start_y:end_y, start_x:end_x]
+
+    return cropped_image
 
 class MyMplCanvas(FigureCanvas):
     def __init__(self, parent=None, width=5, height=7, dpi=100):
@@ -36,8 +55,8 @@ class MyMplCanvas(FigureCanvas):
     
     def clear_axes(self):
         self.axes.clear()
-        self.axes.set_xlim(-35, 35)
-        self.axes.set_ylim(0, 50)
+        self.axes.set_xlim(-10, 10)
+        self.axes.set_ylim(0, 20)
         self.axes.set_facecolor('black')
 
         # 왼쪽과 오른쪽 spine 숨기기
@@ -48,7 +67,16 @@ class MyMplCanvas(FigureCanvas):
         # Y 축 눈금을 오른쪽에 표시
         self.axes.yaxis.tick_right()
 
-        self.axes.plot([-30, 0, 30], [20, 0, 20], color='white', linestyle='--', marker='', linewidth=0.7)
+        # 중점으로부터 5, 10 거리의 위험 반경 표시
+        theta = np.linspace(0, 2*np.pi, 100)
+        x = 5 * np.cos(theta)
+        y = 5 * np.sin(theta)
+        self.axes.plot(x, y, color='white', linestyle='--', marker='', linewidth=0.7)
+
+        x = 10 * np.cos(theta)
+        y = 10 * np.sin(theta)
+        self.axes.plot(x, y, color='white', linestyle='--', marker='', linewidth=0.7)
+        # self.axes.plot([-30, 0, 30], [20, 0, 20], color='white', linestyle='--', marker='', linewidth=0.7)
 
 class MainApp(CMainWindow):
     frame_queue = asyncio.Queue(3)
@@ -78,14 +106,16 @@ class MainApp(CMainWindow):
         self.file_name = 'Camera'
         if self.cap:
             self.fps = int(self.cap.get(cv2.CAP_PROP_FPS))
-            self.video_height_ratio = self.cap.get(cv2.CAP_PROP_FRAME_HEIGHT) / 640
+            # self.video_height_ratio = self.cap.get(cv2.CAP_PROP_FRAME_HEIGHT) / 640
 
-            self.video_width = int(self.cap.get(cv2.CAP_PROP_FRAME_WIDTH) / self.video_height_ratio)
+            # 비디오 정사각 고정
+            self.video_width = 640
             self.video_height = 640
             video_info_text = f"\nvideo size : {self.video_width} x {self.video_height}"
             self.plainTextEdit_videoInfo.setPlainText(video_info_text)
 
             ret, frame = self.cap.read()
+            frame = center_square(frame)
             if ret:
                 frame = cv2.resize(frame, (self.video_width, self.video_height))
                 self.label_videoWindow.setPixmap(frame_to_pixmap(frame))            
@@ -106,14 +136,16 @@ class MainApp(CMainWindow):
             self.cap = cv2.VideoCapture(self.file_name)
             self.fps = int(self.cap.get(cv2.CAP_PROP_FPS))
             # self.video_width = int(self.cap.get(cv2.CAP_PROP_FRAME_WIDTH))
-            self.video_height_ratio = self.cap.get(cv2.CAP_PROP_FRAME_HEIGHT) / 640
+            # self.video_height_ratio = self.cap.get(cv2.CAP_PROP_FRAME_HEIGHT) / 640
 
-            self.video_width = int(self.cap.get(cv2.CAP_PROP_FRAME_WIDTH) / self.video_height_ratio)
+            # 비디오 정사각 고정
+            self.video_width = 640
             self.video_height = 640
             video_info_text = f"\n파일 이름 : \n{self.file_name} \n\nfps : {self.fps} \n\nvideo size : {self.video_width} x {self.video_height}"
             self.plainTextEdit_videoInfo.setPlainText(video_info_text)
 
             ret, frame = self.cap.read()
+            frame = center_square(frame)
             if ret:
                 frame = cv2.resize(frame, (self.video_width, self.video_height))
                 self.label_videoWindow.setPixmap(frame_to_pixmap(frame))            
@@ -141,11 +173,8 @@ class MainApp(CMainWindow):
             show_message(self, "파일을 먼저 선택해주세요!")
             return
 
-        server_uri1 = "ws://10.28.224.52:30300/ws"
-        server_uri2 = "ws://10.28.224.52:30301/ws"
-
-        server_uri1 = "ws://10.28.224.34:30348/ws"
-        server_uri2 = "ws://10.28.224.34:30349/ws"
+        server_uri1 = "ws://10.28.224.115:30057/ws"
+        server_uri2 = "ws://10.28.224.115:30057/ws"
 
         async with websockets.connect(server_uri1) as websocket1, websockets.connect(server_uri2) as websocket2:
             self.send_task = asyncio.create_task(self.send_frame(websocket1, websocket2, self.cap))
@@ -181,6 +210,36 @@ class MainApp(CMainWindow):
             max_point = bbox[6]                       
             mean_point = bbox[7] 
             middle_point = bbox[8]
+
+            # visualize figure 계산에 따른 위험 객체 판별 
+            stat = ''
+            if class_id != 9:
+                # 각도 근사시 중앙 쏠림을 막기위한 보정치
+                corr = 10
+
+                # 객체 x축의 중간값을 각도로 수정 (-45 ~ 45도)
+                r = ((x1 + x2) / 2 - 320) * (45 / 320)
+                r = math.radians(r)
+
+                # median 값을 실제 거리로 근사
+                median_depth = 21 - (median_point * 4 / 3) + corr
+                
+                # depth와 각도에 따른 x, y값
+                x = median_depth * math.sin(r)
+                y = median_depth * math.cos(r) - corr
+
+                # x축 너비의 따른 원 크기 조절
+                rad = (x2 - x1) / 160
+
+                if (x ** 2 + y ** 2) ** 0.5 - rad < 5: # 가까운 경우
+                    stat = 'Danger'
+
+                elif (x ** 2 + y ** 2) ** 0.5 - rad < 10: # 덜 가까운 경우
+                    stat = 'Warning'
+
+                else:
+                    stat = 'Safe'
+                    
             # 원래 프레임의 크기에 맞게 bbox 좌표 조정
             x1 = int(x1 * frame_shape[1] / 640)
             y1 = int(y1 * frame_shape[0] / 640)
@@ -204,8 +263,8 @@ class MainApp(CMainWindow):
                 detections=detections
                 )'''
             cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
-            text = f"Class ID: {class_id}, Max Point: {int(max_point)}, Middle Point: {int(middle_point)}"
-            cv2.putText(frame, text, (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
+            # text = f"{int(max_point)}, {int(middle_point)}"
+            cv2.putText(frame, stat, (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
 
     async def send_frame(self, websocket1, websocket2, cap):
         frame_count = 0
@@ -216,6 +275,7 @@ class MainApp(CMainWindow):
             #print(f'current_time: {current_time}')
             #print(f'video_time: {video_time}')
             ret, frame = cap.read()
+            frame = center_square(frame)
             if (current_time - video_time) > 1:
                 continue
             if ret == None:
@@ -272,7 +332,7 @@ class MainApp(CMainWindow):
 
             frame_count += 1
 
-    def update_figure(self, metadata, figure_size=[70, 70]):
+    def update_figure(self, metadata):
         self.mpl_canvas.clear_axes()
         for bbox in metadata:
             x1, y1, x2, y2 = bbox[:4]
@@ -282,13 +342,42 @@ class MainApp(CMainWindow):
             mean_point = bbox[7] 
             middle_point = bbox[8]
             if class_id != 9:
-                x = int(((x1 + x2)/2) * figure_size[1] / 640) - 35
-                # max point에 따라 log로 0~70 out
-                y = 70 - np.log(max_point + 1) * (70 / np.log(256))
-                # max point에 따라 선형으로 0~70 out
-                # y = 70 * (1 - max_point / 255)
-                y += int(abs(x) * (2/3))
-                self.mpl_canvas.axes.plot(x, y, linestyle='none', marker='*', color="red", alpha=1)
+                # 각도 근사시 중앙 쏠림을 막기위한 보정치
+                corr = 10
+
+                # 객체 x축의 중간값을 각도로 수정 (-45 ~ 45도)
+                r = ((x1 + x2) / 2 - 320) * (45 / 320)
+                r = math.radians(r)
+
+                # median 값을 실제 거리로 근사
+                median_depth = 21 - (median_point * 4 / 3) + corr
+                
+                # depth와 각도에 따른 x, y값
+                x = median_depth * math.sin(r)
+                y = median_depth * math.cos(r) - corr
+
+                # x축 너비의 따른 원 크기 조절
+                rad = (x2 - x1) / 160
+
+                if (x ** 2 + y ** 2) ** 0.5 - rad < 5: # 가까운 경우
+                    if class_id == 0: # 사람인 경우
+                        circle = Circle(xy=(x, y), radius=rad, edgecolor='red', facecolor='red')
+                    else:
+                        circle = Circle(xy=(x, y), radius=rad, edgecolor='blue', facecolor='blue')
+
+                elif (x ** 2 + y ** 2) ** 0.5 - rad < 10: # 덜 가까운 경우
+                    if class_id == 0: # 사람인 경우
+                        circle = Circle(xy=(x, y), radius=rad, edgecolor='red', facecolor=(0.5, 0, 0))
+                    else:
+                        circle = Circle(xy=(x, y), radius=rad, edgecolor='blue', facecolor=(0, 0, 0.5))
+
+                else:
+                    if class_id == 0: # 사람인 경우
+                        circle = Circle(xy=(x, y), radius=rad, edgecolor='red', facecolor='none')
+                    else:
+                        circle = Circle(xy=(x, y), radius=rad, edgecolor='blue', facecolor='none')
+
+                self.mpl_canvas.axes.add_patch(circle)
             
         self.mpl_canvas.draw()
 def main():
