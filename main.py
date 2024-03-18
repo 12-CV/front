@@ -32,6 +32,7 @@ server_uris = [
     # "ws://10.28.224.181:30316/ws", # 민주서버
     # "ws://10.28.224.115:30057/ws", # 동우서버
     # "ws://10.28.224.52:30300/ws", # 세진서버
+    "ws://10.28.224.52:30301/ws", # 세진 리뉴얼 서버
 ]
 FRAME_QUEUE_LIMIT = 3
 
@@ -251,16 +252,15 @@ class MainApp(CMainWindow):
             if ret == None:
                 break
             try:
-                send_frame = cv2.resize(frame, (640, 640))
                 frame = cv2.resize(frame, (self.video_width, self.video_height))
             except:
                 raise Exception("영상이 끝났습니다!")
             
             await self.frame_queue.put(frame)
-            _, img_encoded = cv2.imencode('.jpg', send_frame)
+            _, img_encoded = cv2.imencode('.jpg', frame)
 
             await sockets[frame_count % len(sockets)].send(img_encoded.tobytes())
-            print(f"{frame_count % len(sockets)} 번째 서버에 프레임을 보냈습니다.")
+            # print(f"{frame_count % len(sockets)} 번째 서버에 프레임을 보냈습니다.")
             frame_count += 1
 
     async def receive_frame(self, websocket):
@@ -290,10 +290,10 @@ class MainApp(CMainWindow):
 
             cv2.putText(frame, f"FPS: {FPS}", (frame.shape[1] - 80, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 1, cv2.LINE_AA)
 
-            if elapsed < 0.03:
-                await asyncio.sleep(time_per_frame - elapsed)
+            # if elapsed < 0.03:
+            #     await asyncio.sleep(time_per_frame - elapsed)
 
-            self.update_figure(metadata, frame)
+            # self.update_figure(metadata, frame)
             self.update_frame(frame)
             prev_time = time.time()
 
