@@ -33,7 +33,7 @@ server_uris = [
     # "ws://10.28.224.115:30057/ws", # 동우서버
     # "ws://10.28.224.52:30300/ws", # 세진서버
 ]
-FRAME_QUEUE_LIMIT = 1
+FRAME_QUEUE_LIMIT = 3
 
 def center_square(image):
     # 이미지 크기 확인
@@ -110,6 +110,8 @@ class MainApp(CMainWindow):
         
     async def custom_init(self):
         self.connections = await self.connect_servers(server_uris)
+        global FRAME_QUEUE_LIMIT
+        FRAME_QUEUE_LIMIT = len(self.connections) * 2
         print(f"연결된 서버의 개수는 {len(self.connections)} 입니다.")
 
     def play_beep(self, y):
@@ -135,7 +137,7 @@ class MainApp(CMainWindow):
     @qasync.asyncSlot()
     async def import_camera_button_clicked(self):
         await self.stop_video_button_clicked()
-        self.frame_queue = asyncio.Queue(30)
+        self.frame_queue = asyncio.Queue(FRAME_QUEUE_LIMIT)
         self.metadata_queue = asyncio.Queue()
         self.cap = cv2.VideoCapture(0)
         self.file_name = 'Camera'
@@ -162,7 +164,7 @@ class MainApp(CMainWindow):
     async def import_video_button_clicked(self):
         # file_name, _ = QFileDialog.getOpenFileName(self, "영상 불러오기", "", "Video Files (*.mp4 *.avi *.mov *.mkv);;All Files (*)")
         await self.stop_video_button_clicked()
-        self.frame_queue = asyncio.Queue(30)
+        self.frame_queue = asyncio.Queue(FRAME_QUEUE_LIMIT)
         self.metadata_queue = asyncio.Queue()
         file_name, _ = QFileDialog.getOpenFileName(self, "영상 불러오기", "", "Video Files (*.mp4 *.avi)")
         if file_name:
@@ -170,10 +172,6 @@ class MainApp(CMainWindow):
 
             self.cap = cv2.VideoCapture(self.file_name)
             self.fps = int(self.cap.get(cv2.CAP_PROP_FPS))
-            # self.video_width = int(self.cap.get(cv2.CAP_PROP_FRAME_WIDTH))
-            # self.video_height_ratio = self.cap.get(cv2.CAP_PROP_FRAME_HEIGHT) / 640
-
-            # 비디오 정사각 고정
             self.video_width = 640
             self.video_height = 640
             video_info_text = f"\n파일 이름 : \n{self.file_name} \n\nfps : {self.fps} \n\nvideo size : {self.video_width} x {self.video_height}"
@@ -191,7 +189,7 @@ class MainApp(CMainWindow):
     @qasync.asyncSlot()
     async def restart_video_button_clicked(self):
         await self.stop_video_button_clicked()
-        self.frame_queue = asyncio.Queue(30)
+        self.frame_queue = asyncio.Queue(FRAME_QUEUE_LIMIT)
         self.metadata_queue = asyncio.Queue()
         self.cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
         await self.start_video_button_clicked()
@@ -335,27 +333,27 @@ class MainApp(CMainWindow):
                     color = (0, 255, 0)
                     color_str = "green"
 
-                # circle = Circle(xy=(x, y), radius=rad, edgecolor=color_str, facecolor=color_str)
+                circle = Circle(xy=(x, y), radius=rad, edgecolor=color_str, facecolor=color_str)
                 self.play_beep(distance)
-                # self.mpl_canvas.axes.add_patch(circle)
+                self.mpl_canvas.axes.add_patch(circle)
 
                 # 거리 20 이내의 객체만 Bbox를 그려준다.
-                # if distance < 20:
-                #     cv2.rectangle(frame, (x1, y1), (x2, y2), color, 2)
-                #     cv2.putText(frame, stat, (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
+                if distance < 20:
+                    cv2.rectangle(frame, (x1, y1), (x2, y2), color, 2)
+                    cv2.putText(frame, stat, (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
 
-            # else:
-            #     mosaic_area = frame[y1:y2, x1:x2]
-            #     X, Y = x1//30, y1//30
-            #     if X <= 0:
-            #         X = 1
-            #     if Y <= 0:
-            #         Y = 1
-            #     mosaic_area = cv2.resize(mosaic_area, (X,Y))
-            #     mosaic_area = cv2.resize(mosaic_area, (x2 - x1, y2 - y1), interpolation=cv2.INTER_NEAREST)
-            #     frame[y1:y2, x1:x2] = mosaic_area
+            else:
+                mosaic_area = frame[y1:y2, x1:x2]
+                X, Y = x1//30, y1//30
+                if X <= 0:
+                    X = 1
+                if Y <= 0:
+                    Y = 1
+                mosaic_area = cv2.resize(mosaic_area, (X,Y))
+                mosaic_area = cv2.resize(mosaic_area, (x2 - x1, y2 - y1), interpolation=cv2.INTER_NEAREST)
+                frame[y1:y2, x1:x2] = mosaic_area
             
-        # self.mpl_canvas.draw()
+        self.mpl_canvas.draw()
 def main():
     parser = argparse.ArgumentParser(description='Program Mode')
     parser.add_argument('--mode', type=str, help='DEV or PROD', default="DEV")
