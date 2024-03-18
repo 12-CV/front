@@ -143,9 +143,6 @@ class MainApp(CMainWindow):
         self.file_name = 'Camera'
         if self.cap:
             self.fps = int(self.cap.get(cv2.CAP_PROP_FPS))
-            # self.video_height_ratio = self.cap.get(cv2.CAP_PROP_FRAME_HEIGHT) / 640
-
-            # 비디오 정사각 고정
             self.video_width = 640
             self.video_height = 640
             video_info_text = f"\nvideo size : {self.video_width} x {self.video_height}"
