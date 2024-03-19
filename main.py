@@ -30,12 +30,15 @@ server_uris = [
     # "ws://10.28.224.34:30348/ws", # 재영서버
     "ws://10.28.224.34:30349/ws", # 재영 리뉴얼 서버
     # "ws://10.28.224.216:30394/ws", # 혜나서버
+    # "ws://10.28.224.216:30395/ws", # 혜나 리뉴얼 서버
     # "ws://10.28.224.181:30316/ws", # 민주서버
+    "ws://10.28.224.181:30317/ws", # 민주 리뉴얼 서버
     # "ws://10.28.224.115:30057/ws", # 동우서버
+    # "ws://10.28.224.115:30058/ws", # 동우 리뉴얼 서버
     # "ws://10.28.224.52:30300/ws", # 세진서버
-    # "ws://10.28.224.52:30301/ws", # 세진 리뉴얼 서버
+    "ws://10.28.224.52:30301/ws", # 세진 리뉴얼 서버
 ]
-FRAME_QUEUE_LIMIT = 1
+FRAME_QUEUE_LIMIT = 4
 
 def center_square(image):
     # 이미지 크기 확인
@@ -313,13 +316,13 @@ class MainApp(CMainWindow):
 
     async def render_frame2(self, frame_shape, fps):
         FPS = fps
-        time_per_frame = 1 / fps
+        time_per_frame = 0.031
         prev_time = time.time() - 1
         fps_time = time.time()
         frame_count = 0
         while True:
-            frame = await self.temp_queue.get()
             frame = await self.frame_queue.get()
+            frame = await self.temp_queue.get()
             curr_time = time.time()
             elapsed = curr_time - prev_time
 
@@ -330,7 +333,7 @@ class MainApp(CMainWindow):
 
             cv2.putText(frame, f"FPS: {FPS}", (frame.shape[1] - 80, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 1, cv2.LINE_AA)
 
-            if elapsed < 0.03:
+            if elapsed < time_per_frame:
                 await asyncio.sleep(time_per_frame - elapsed)
 
             self.update_frame(frame)
