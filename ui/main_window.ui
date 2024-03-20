@@ -249,19 +249,6 @@ QPushButton:hover
               </widget>
              </item>
              <item>
-              <widget class="QCheckBox" name="checkBox_availableRouteDetect">
-               <property name="font">
-                <font>
-                 <family>NanumGothic</family>
-                 <pointsize>10</pointsize>
-                </font>
-               </property>
-               <property name="text">
-                <string>주행 가능 영역 탐지</string>
-               </property>
-              </widget>
-             </item>
-             <item>
               <widget class="QCheckBox" name="checkBox_mosaicFace">
                <property name="font">
                 <font>
@@ -412,6 +399,21 @@ QPushButton:hover
        <layout class="QHBoxLayout" name="horizontalLayout_videoLayout">
         <item>
          <widget class="QLabel" name="label_videoWindow">
+          <property name="font">
+           <font>
+            <kerning>true</kerning>
+           </font>
+          </property>
+          <property name="text">
+           <string/>
+          </property>
+          <property name="margin">
+           <number>-1</number>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QLabel" name="label_radarWindow">
           <property name="font">
            <font>
             <kerning>true</kerning>
