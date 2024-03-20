@@ -22,23 +22,25 @@ import math
 # 프로젝트 내의 모듈
 from common.custom_class import CMainWindow
 from common.function import *
-from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
-from matplotlib.figure import Figure
 from matplotlib.patches import Ellipse, Circle
 
+# server_uris = [
+#     "ws://10.28.224.34:30348/ws", # 재영서버
+#     "ws://10.28.224.216:30394/ws", # 혜나서버
+#     "ws://10.28.224.181:30316/ws", # 민주서버
+#     "ws://10.28.224.115:30057/ws", # 동우서버
+#     "ws://10.28.224.52:30300/ws", # 세진서버
+# ]
+
 server_uris = [
-    # "ws://10.28.224.34:30348/ws", # 재영서버
     "ws://10.28.224.34:30349/ws", # 재영 리뉴얼 서버
-    # "ws://10.28.224.216:30394/ws", # 혜나서버
     # "ws://10.28.224.216:30395/ws", # 혜나 리뉴얼 서버
-    # "ws://10.28.224.181:30316/ws", # 민주서버
-    "ws://10.28.224.181:30317/ws", # 민주 리뉴얼 서버
-    # "ws://10.28.224.115:30057/ws", # 동우서버
+    # "ws://10.28.224.181:30317/ws", # 민주 리뉴얼 서버
     # "ws://10.28.224.115:30058/ws", # 동우 리뉴얼 서버
-    # "ws://10.28.224.52:30300/ws", # 세진서버
-    "ws://10.28.224.52:30301/ws", # 세진 리뉴얼 서버
+    # "ws://10.28.224.52:30301/ws", # 세진 리뉴얼 서버
 ]
-FRAME_QUEUE_LIMIT = 4
+
+FRAME_QUEUE_LIMIT = 3 # 웹캠 -> 1, 영상 3
 
 def center_square(image):
     # 이미지 크기 확인
@@ -56,54 +58,18 @@ def center_square(image):
 
     return cropped_image
 
-class MyMplCanvas(FigureCanvas):
-    def __init__(self, parent=None, width=4, height=6, dpi=100):
-        fig = Figure(figsize=(width, height), dpi=dpi)
-        self.axes = fig.add_subplot(111)
-        fig.set_facecolor('black')
-        self.axes.tick_params(axis='both', colors='white', labelcolor='white')
-        self.clear_axes()
-
-        super(MyMplCanvas, self).__init__(fig)
-        self.setFixedSize(640, 640)
-
-    def clear_axes(self):
-        self.axes.clear()
-        self.axes.set_xlim(-10, 10)
-        self.axes.set_ylim(0, 20)
-        self.axes.set_facecolor('black')
-
-        # 왼쪽과 오른쪽 spine 숨기기
-        self.axes.spines['top'].set_visible(False)  # 상단 spine 숨기기
-        self.axes.spines['bottom'].set_position('zero')  # 하단 spine을 0 위치로 이동
-        self.axes.spines['left'].set_visible(False)  # 왼쪽 spine 숨기기
-        self.axes.spines['right'].set_position('zero')  # 오른쪽 spine을 가운데로 이동
-        # Y 축 눈금을 오른쪽에 표시
-        self.axes.yaxis.tick_right()
-
-        # 중점으로부터 5, 10 거리의 위험 반경 표시
-        theta = np.linspace(0, 2*np.pi, 100)
-        x = 5 * np.cos(theta)
-        y = 5 * np.sin(theta)
-        self.axes.plot(x, y, color='white', linestyle='--', marker='', linewidth=0.7)
-
-        x = 10 * np.cos(theta)
-        y = 10 * np.sin(theta)
-        self.axes.plot(x, y, color='white', linestyle='--', marker='', linewidth=0.7)
-        # self.axes.plot([-30, 0, 30], [20, 0, 20], color='white', linestyle='--', marker='', linewidth=0.7)
 
 class MainApp(CMainWindow):
     frame_queue = asyncio.Queue(FRAME_QUEUE_LIMIT)
     metadata_queue = asyncio.Queue()
-    temp_queue = asyncio.Queue()
+    recieved_frame_queue = asyncio.Queue()
+    recieved_radar_queue = asyncio.Queue()
+    recieved_beep_queue = asyncio.Queue()
     task_list = []
 
     def __init__(self, mode):
         super().__init__()
         loadUi("./ui/main_window.ui", self)
-        
-        self.mpl_canvas = MyMplCanvas(self)
-        self.horizontalLayout_videoLayout.addWidget(self.mpl_canvas)
         self.last_beep_time = time.time()
         self.beep_player = QMediaPlayer()
         
@@ -120,13 +86,13 @@ class MainApp(CMainWindow):
         FRAME_QUEUE_LIMIT = len(self.connections) * 2
         print(f"연결된 서버의 개수는 {len(self.connections)} 입니다.")
 
-    def play_beep(self, y):
+    def play_beep(self, y=3):
         current_time = time.time()
         interval = 1.5  # 기본 간격
         interval = 999999  # 기본 간격
 
         if y < 5:
-            interval = 0.1
+            interval = 0.2
         # elif y < 10:
         #     interval = 0.6
 
@@ -208,7 +174,7 @@ class MainApp(CMainWindow):
         if not file_name:
             show_message(self, "파일을 먼저 선택해주세요!")
             return
-        
+
         # self.task_list.append(asyncio.create_task(self.send_frame(self.connections, self.cap)))
         # self.task_list.extend([asyncio.create_task(self.receive_frame(socket)) for socket in self.connections])
         # self.task_list.append(asyncio.create_task(self.render_frame((self.video_height, self.video_width), self.fps)))
@@ -244,12 +210,24 @@ class MainApp(CMainWindow):
         qt_image = QImage(rgb_image.data, w, h, bytes_per_line, QImage.Format_RGB888)
         self.label_videoWindow.setPixmap(QPixmap.fromImage(qt_image))
     
+    def update_radar(self, frame):
+        rgb_image = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        h, w, ch = rgb_image.shape
+        bytes_per_line = ch * w
+        qt_image = QImage(rgb_image.data, w, h, bytes_per_line, QImage.Format_RGB888)
+        self.label_radarWindow.setPixmap(QPixmap.fromImage(qt_image))
+    
     async def send_frame(self, sockets, cap):
         print(f"프레임 보내기를 시작합니다.")
         print(f"받은 서버목록 {sockets}")
 
         frame_count = 0
         start_time = time.time()
+
+        blur_face = self.checkBox_mosaicFace.isChecked()
+        draw_bbox = self.checkBox_objectDetect.isChecked()
+        collision_warning = self.checkBox_collisionDetect.isChecked()
+
         while cap.isOpened():
 
             current_time = time.time() - start_time
@@ -267,8 +245,15 @@ class MainApp(CMainWindow):
             
             await self.frame_queue.put(frame)
             _, img_encoded = cv2.imencode('.jpg', frame)
-
+            
+            metadata = {
+                "frame_count":frame_count,
+                "blur_face":blur_face,
+                "draw_bbox":draw_bbox,
+                "collision_warning":collision_warning,
+            }
             await sockets[frame_count % len(sockets)].send(img_encoded.tobytes())
+            await sockets[frame_count % len(sockets)].send(json.dumps(metadata))
             frame_count += 1
 
     async def receive_frame(self, websocket):
@@ -280,9 +265,19 @@ class MainApp(CMainWindow):
 
     async def receive_frame2(self, websocket):
         while True:
-            data = await websocket.recv()
-            image = cv2.imdecode(np.frombuffer(data, dtype=np.uint8), cv2.IMREAD_COLOR)
-            await self.temp_queue.put(image)
+            frame_data = await websocket.recv()
+            radar_data = await websocket.recv()
+            metadata_json = await websocket.recv()
+            frame = cv2.imdecode(np.frombuffer(frame_data, dtype=np.uint8), cv2.IMREAD_COLOR)
+            radar = cv2.imdecode(np.frombuffer(radar_data, dtype=np.uint8), cv2.IMREAD_COLOR)
+
+            metadata = json.loads(metadata_json)
+            frame_count = metadata["frame_count"]
+            # 아직 frame count 는 쓰는데가 없음
+            # print(f"받은 프레임 번호 {frame_count}")
+            await self.recieved_frame_queue.put(frame)
+            await self.recieved_radar_queue.put(radar)
+            await self.recieved_beep_queue.put(metadata["beep"])
 
     async def render_frame(self, frame_shape, fps):
         FPS = fps
@@ -322,7 +317,9 @@ class MainApp(CMainWindow):
         frame_count = 0
         while True:
             frame = await self.frame_queue.get()
-            frame = await self.temp_queue.get()
+            frame = await self.recieved_frame_queue.get()
+            radar = await self.recieved_radar_queue.get()
+            beep = await self.recieved_beep_queue.get()
             curr_time = time.time()
             elapsed = curr_time - prev_time
 
@@ -332,12 +329,16 @@ class MainApp(CMainWindow):
                 fps_time = time.time()
 
             cv2.putText(frame, f"FPS: {FPS}", (frame.shape[1] - 80, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 1, cv2.LINE_AA)
+            # cv2.putText(frame, f"FPS: {30}", (frame.shape[1] - 80, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 1, cv2.LINE_AA)
 
             if elapsed < time_per_frame:
                 await asyncio.sleep(time_per_frame - elapsed)
 
             self.update_frame(frame)
+            self.update_radar(radar)
             prev_time = time.time()
+            if beep:
+                self.play_beep()
 
             frame_count += 1
 
@@ -373,8 +374,8 @@ class MainApp(CMainWindow):
                     color_str = "green"
 
                 circle = Circle(xy=(x, y), radius=rad, edgecolor=color_str, facecolor=color_str)
-                self.play_beep(distance)
                 self.mpl_canvas.axes.add_patch(circle)
+                self.play_beep(distance)
 
                 # 거리 20 이내의 객체만 Bbox를 그려준다.
                 if distance < 20:

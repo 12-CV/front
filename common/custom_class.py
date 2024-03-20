@@ -4,7 +4,6 @@ class CMainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         
-        self.checkBox_availableRouteDetect: QCheckBox
         self.checkBox_collisionDetect: QCheckBox
         self.checkBox_mosaicFace: QCheckBox
         self.checkBox_objectDetect: QCheckBox
@@ -20,5 +19,6 @@ class CMainWindow(QMainWindow):
         
         self.graphicsView_mainViewer: QGraphicsView
         self.label_videoWindow: QLabel
+        self.label_radarWindow: QLabel
 
         self.horizontalLayout_videoLayout: QHBoxLayout
