@@ -233,6 +233,9 @@ QPushButton:hover
                <property name="text">
                 <string>충돌 감지</string>
                </property>
+               <property name="checked">
+                <bool>true</bool>
+               </property>
               </widget>
              </item>
              <item>
@@ -246,6 +249,9 @@ QPushButton:hover
                <property name="text">
                 <string>객체 탐지</string>
                </property>
+               <property name="checked">
+                <bool>true</bool>
+               </property>
               </widget>
              </item>
              <item>
@@ -258,6 +264,9 @@ QPushButton:hover
                </property>
                <property name="text">
                 <string>얼굴 모자이크</string>
+               </property>
+               <property name="checked">
+                <bool>true</bool>
                </property>
               </widget>
              </item>
