@@ -24,40 +24,21 @@ from common.custom_class import CMainWindow
 from common.function import *
 from matplotlib.patches import Ellipse, Circle
 
-# server_uris = [
-#     "ws://10.28.224.34:30348/ws", # 재영서버
-#     "ws://10.28.224.216:30394/ws", # 혜나서버
-#     "ws://10.28.224.181:30316/ws", # 민주서버
-#     "ws://10.28.224.115:30057/ws", # 동우서버
-#     "ws://10.28.224.52:30300/ws", # 세진서버
-# ]
-
 server_uris = [
     "ws://10.28.224.34:30349/ws", # 재영 리뉴얼 서버
-    # "ws://10.28.224.216:30395/ws", # 혜나 리뉴얼 서버
-    # "ws://10.28.224.181:30317/ws", # 민주 리뉴얼 서버
-    # "ws://10.28.224.115:30058/ws", # 동우 리뉴얼 서버
-    # "ws://10.28.224.52:30301/ws", # 세진 리뉴얼 서버
+    "ws://10.28.224.216:30395/ws", # 혜나 리뉴얼 서버
+    "ws://10.28.224.181:30317/ws", # 민주 리뉴얼 서버
+    "ws://10.28.224.115:30058/ws", # 동우 리뉴얼 서버
+    "ws://10.28.224.52:30301/ws", # 세진 리뉴얼 서버
 ]
 
-FRAME_QUEUE_LIMIT = 3 # 웹캠 -> 1, 영상 3
+FRAME_QUEUE_LIMIT = 5 # 웹캠 -> 1, 영상 10~20
 
-def center_square(image):
-    # 이미지 크기 확인
-    height, width, _ = image.shape
 
-    # 가로와 세로 중 짧은 길이 결정
-    min_dim = min(height, width)
-
-    # 정사각형으로 이미지 자르기
-    start_x = (width - min_dim) // 2
-    start_y = (height - min_dim) // 2
-    end_x = start_x + min_dim
-    end_y = start_y + min_dim
-    cropped_image = image[start_y:end_y, start_x:end_x]
-
-    return cropped_image
-
+frame_counter = 0
+lock = asyncio.Lock()
+condition = asyncio.Condition()
+time_count_dict = {}
 
 class MainApp(CMainWindow):
     frame_queue = asyncio.Queue(FRAME_QUEUE_LIMIT)
@@ -83,7 +64,7 @@ class MainApp(CMainWindow):
     async def custom_init(self):
         self.connections = await self.connect_servers(server_uris)
         global FRAME_QUEUE_LIMIT
-        FRAME_QUEUE_LIMIT = len(self.connections) * 2
+        FRAME_QUEUE_LIMIT = len(self.connections) * 1
         print(f"연결된 서버의 개수는 {len(self.connections)} 입니다.")
 
     def play_beep(self, y=3):
@@ -121,7 +102,7 @@ class MainApp(CMainWindow):
             self.plainTextEdit_videoInfo.setPlainText(video_info_text)
 
             ret, frame = self.cap.read()
-            frame = center_square(frame)
+            frame = self.center_square(frame)
             if ret:
                 frame = cv2.resize(frame, (self.video_width, self.video_height))
                 self.label_videoWindow.setPixmap(frame_to_pixmap(frame))            
@@ -136,18 +117,18 @@ class MainApp(CMainWindow):
         self.frame_queue = asyncio.Queue(FRAME_QUEUE_LIMIT)
         self.metadata_queue = asyncio.Queue()
         file_name, _ = QFileDialog.getOpenFileName(self, "영상 불러오기", "", "Video Files (*.mp4 *.avi)")
+
         if file_name:
             self.file_name = file_name
-
             self.cap = cv2.VideoCapture(self.file_name)
             self.fps = int(self.cap.get(cv2.CAP_PROP_FPS))
             self.video_width = 640
             self.video_height = 640
             video_info_text = f"\n파일 이름 : \n{self.file_name} \n\nfps : {self.fps} \n\nvideo size : {self.video_width} x {self.video_height}"
             self.plainTextEdit_videoInfo.setPlainText(video_info_text)
-
             ret, frame = self.cap.read()
-            frame = center_square(frame)
+            frame = self.center_square(frame)
+
             if ret:
                 frame = cv2.resize(frame, (self.video_width, self.video_height))
                 self.label_videoWindow.setPixmap(frame_to_pixmap(frame))            
@@ -171,23 +152,38 @@ class MainApp(CMainWindow):
     @qasync.asyncSlot()
     async def start_video_button_clicked(self):
         file_name = getattr(self, 'file_name', None)
+
         if not file_name:
             show_message(self, "파일을 먼저 선택해주세요!")
             return
-
-        # self.task_list.append(asyncio.create_task(self.send_frame(self.connections, self.cap)))
-        # self.task_list.extend([asyncio.create_task(self.receive_frame(socket)) for socket in self.connections])
-        # self.task_list.append(asyncio.create_task(self.render_frame((self.video_height, self.video_width), self.fps)))
-
+        
+        global frame_counter
+        frame_counter = 0
         self.task_list.append(asyncio.create_task(self.send_frame(self.connections, self.cap)))
-        self.task_list.extend([asyncio.create_task(self.receive_frame2(socket)) for socket in self.connections])
-        self.task_list.append(asyncio.create_task(self.render_frame2((self.video_height, self.video_width), self.fps)))
+        self.task_list.extend([asyncio.create_task(self.receive_frame(socket)) for socket in self.connections])
+        self.task_list.append(asyncio.create_task(self.render_frame((self.video_height, self.video_width), self.fps)))
         
         await asyncio.gather(
             *self.task_list,
             # return_exceptions=True  
         )
 
+    def center_square(self, image):
+    # 이미지 크기 확인
+        height, width, _ = image.shape
+
+        # 가로와 세로 중 짧은 길이 결정
+        min_dim = min(height, width)
+
+        # 정사각형으로 이미지 자르기
+        start_x = (width - min_dim) // 2
+        start_y = (height - min_dim) // 2
+        end_x = start_x + min_dim
+        end_y = start_y + min_dim
+        cropped_image = image[start_y:end_y, start_x:end_x]
+
+        return cropped_image
+    
     async def connect_servers(self, server_uris):
         async def check_websocket(uri):
             try:
@@ -223,17 +219,17 @@ class MainApp(CMainWindow):
 
         frame_count = 0
         start_time = time.time()
-
         blur_face = self.checkBox_mosaicFace.isChecked()
         draw_bbox = self.checkBox_objectDetect.isChecked()
         collision_warning = self.checkBox_collisionDetect.isChecked()
 
         while cap.isOpened():
-
             current_time = time.time() - start_time
+            time_count_dict[frame_count] = time.time()
+
             video_time = cap.get(cv2.CAP_PROP_POS_MSEC) / 1000
             ret, frame = cap.read()
-            frame = center_square(frame)
+            frame = self.center_square(frame)
             # if (current_time - video_time) > 1:
             #     continue
             if ret == None:
@@ -257,13 +253,8 @@ class MainApp(CMainWindow):
             frame_count += 1
 
     async def receive_frame(self, websocket):
-        while True:
-            result = await websocket.recv()
-            result_dict = json.loads(result)
-            bboxes = result_dict.get("bboxes", [])
-            await self.metadata_queue.put(bboxes)
+        global frame_counter
 
-    async def receive_frame2(self, websocket):
         while True:
             frame_data = await websocket.recv()
             radar_data = await websocket.recv()
@@ -273,43 +264,26 @@ class MainApp(CMainWindow):
 
             metadata = json.loads(metadata_json)
             frame_count = metadata["frame_count"]
-            # 아직 frame count 는 쓰는데가 없음
-            # print(f"받은 프레임 번호 {frame_count}")
+            while True:
+                async with lock:
+                    if frame_counter == frame_count:
+                        break
+                async with condition:
+                    await condition.wait()
+            
+            current_time = time.time()
+            print(f"{frame_counter}프레임의 받은시간 - 전송시간은 {current_time - time_count_dict[frame_counter]} 입니다.")
+            async with lock:
+                frame_counter += 1
+
+            async with condition:
+                condition.notify_all()
+            
             await self.recieved_frame_queue.put(frame)
             await self.recieved_radar_queue.put(radar)
             await self.recieved_beep_queue.put(metadata["beep"])
 
     async def render_frame(self, frame_shape, fps):
-        FPS = fps
-        time_per_frame = 1 / fps
-        prev_time = time.time() - 1
-        fps_time = time.time()
-        frame_count = 0
-        while True:
-            metadata = await self.metadata_queue.get()
-            frame = await self.frame_queue.get()
-
-            curr_time = time.time()
-            elapsed = curr_time - prev_time
-
-            if 1 < (time.time() - fps_time):
-                FPS = frame_count
-                frame_count = 0
-                fps_time = time.time()
-
-            cv2.putText(frame, f"FPS: {FPS}", (frame.shape[1] - 80, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 1, cv2.LINE_AA)
-
-            if elapsed < 0.03:
-                await asyncio.sleep(time_per_frame - elapsed)
-
-            self.update_figure(metadata, frame)
-            self.update_frame(frame)
-            prev_time = time.time()
-
-            frame_count += 1
-
-
-    async def render_frame2(self, frame_shape, fps):
         FPS = fps
         time_per_frame = 0.031
         prev_time = time.time() - 1
@@ -342,58 +316,6 @@ class MainApp(CMainWindow):
 
             frame_count += 1
 
-    def update_figure(self, metadata, frame):
-        self.mpl_canvas.clear_axes()
-        for bbox in metadata:
-            x1, y1, x2, y2 = bbox[:4]
-            x1, y1, x2, y2 = int(x1), int(y1), int(x2), int(y2)
-            class_id = bbox[4]
-            median_point = bbox[5]
-            max_point = bbox[6]                     
-            mean_point = bbox[7] 
-            middle_point = bbox[8]
-            x = bbox[9]
-            y = bbox[10]
-            rad = bbox[11]
-            distance = bbox[12]
-
-            if class_id != 9:
-                if distance < 5:
-                    stat = 'Danger'
-                    color = (0, 0, 255)
-                    color_str = "red"
-
-                elif distance < 10:
-                    stat = 'Warning'
-                    color = (0, 165, 255)
-                    color_str = "orange"
-
-                else:
-                    stat = 'Safe'
-                    color = (0, 255, 0)
-                    color_str = "green"
-
-                circle = Circle(xy=(x, y), radius=rad, edgecolor=color_str, facecolor=color_str)
-                self.mpl_canvas.axes.add_patch(circle)
-                self.play_beep(distance)
-
-                # 거리 20 이내의 객체만 Bbox를 그려준다.
-                if distance < 20:
-                    cv2.rectangle(frame, (x1, y1), (x2, y2), color, 2)
-                    cv2.putText(frame, stat, (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
-
-            else:
-                mosaic_area = frame[y1:y2, x1:x2]
-                X, Y = x1//30, y1//30
-                if X <= 0:
-                    X = 1
-                if Y <= 0:
-                    Y = 1
-                mosaic_area = cv2.resize(mosaic_area, (X,Y))
-                mosaic_area = cv2.resize(mosaic_area, (x2 - x1, y2 - y1), interpolation=cv2.INTER_NEAREST)
-                frame[y1:y2, x1:x2] = mosaic_area
-            
-        self.mpl_canvas.draw()
 def main():
     parser = argparse.ArgumentParser(description='Program Mode')
     parser.add_argument('--mode', type=str, help='DEV or PROD', default="DEV")
