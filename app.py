@@ -29,7 +29,7 @@ server_uris = [
     "ws://10.28.224.216:30395/ws", # 혜나 리뉴얼 서버
     "ws://10.28.224.181:30317/ws", # 민주 리뉴얼 서버
     "ws://10.28.224.115:30058/ws", # 동우 리뉴얼 서버
-    "ws://10.28.224.52:30301/ws", # 세진 리뉴얼 서버
+    "ws://10.28.224.52:30300/ws", # 세진 리뉴얼 서버
 ]
 
 FRAME_QUEUE_LIMIT = 5 # 웹캠 -> 1, 영상 10~20
@@ -139,8 +139,6 @@ class MainApp(CMainWindow):
     @qasync.asyncSlot()
     async def restart_video_button_clicked(self):
         await self.stop_video_button_clicked()
-        self.frame_queue = asyncio.Queue(FRAME_QUEUE_LIMIT)
-        self.metadata_queue = asyncio.Queue()
         self.cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
         await self.start_video_button_clicked()
     
@@ -148,6 +146,11 @@ class MainApp(CMainWindow):
     async def stop_video_button_clicked(self):
         for task in self.task_list:
             task.cancel()
+        for socket in self.connections:
+            await socket.close()
+        self.connections.clear()
+        self.frame_queue = asyncio.Queue(FRAME_QUEUE_LIMIT)
+        self.metadata_queue = asyncio.Queue()
 
     @qasync.asyncSlot()
     async def start_video_button_clicked(self):
@@ -156,11 +159,12 @@ class MainApp(CMainWindow):
         if not file_name:
             show_message(self, "파일을 먼저 선택해주세요!")
             return
-        
+        self.task_list = []
+        self.connections = await self.connect_servers(server_uris)
         global frame_counter
         frame_counter = 0
         self.task_list.append(asyncio.create_task(self.send_frame(self.connections, self.cap)))
-        self.task_list.extend([asyncio.create_task(self.receive_frame(socket)) for socket in self.connections])
+        self.task_list.extend([asyncio.create_task(self.receive_frame(socket, len(self.connections))) for socket in self.connections])
         self.task_list.append(asyncio.create_task(self.render_frame((self.video_height, self.video_width), self.fps)))
         
         await asyncio.gather(
@@ -252,7 +256,7 @@ class MainApp(CMainWindow):
             await sockets[frame_count % len(sockets)].send(json.dumps(metadata))
             frame_count += 1
 
-    async def receive_frame(self, websocket):
+    async def receive_frame(self, websocket, sockets):
         global frame_counter
 
         while True:
@@ -272,7 +276,9 @@ class MainApp(CMainWindow):
                     await condition.wait()
             
             current_time = time.time()
-            print(f"{frame_counter}프레임의 받은시간 - 전송시간은 {current_time - time_count_dict[frame_counter]} 입니다.")
+            server_num = f"연결된 서버 개수: {sockets}\n\n"
+            time_info_text = f"딜레이시간: {(current_time - time_count_dict[frame_counter]):.3f}"
+            self.plainTextEdit_mainLogger.setPlainText(server_num + time_info_text)
             async with lock:
                 frame_counter += 1
 
