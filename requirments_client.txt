@@ -1,0 +1,6 @@
+opencv-python
+qasync
+websockets
+PyQt5
+numpy
+matplotlib
